@@ -80,7 +80,7 @@ Nav action mapping:
 | Import | Import an existing HTML poster via file picker (`onImportHtml`) |
 | Settings | Toggle the Settings panel (`showSettings`) |
 | History | Switch the center region to the list/grid view (`view = "list"`, `HistoryList`) |
-| Export | Export the focused design — small menu: PNG (`handleExport`) / HTML (`handleDownload`); disabled when no focused design |
+| Export | Top-right **dropdown** with two items — **PNG** (`handleExport`) and **HTML** (`handleDownload`); disabled when no focused design |
 
 "Full page" view is the default canvas; **History is the former "list" view** (there is
 no separate Full/List toggle — History is the list).
@@ -91,7 +91,7 @@ Anchored to the right edge of the middle row. Sections, in order:
 
 1. **Edit HTML** — the CodeEditor for the focused design.
 2. **Properties** — Batch (variant count), Resolution (aspect ratio), Background Color
-   (color + opacity).
+   (color + opacity, applied to the poster HTML — §4.1).
 3. **Styles** — StylesPane (browse/select/import styles).
 4. **Assets** — manage assets attached for the current prompt.
 5. **BG** — BackgroundsPane (animated background catalog).
@@ -127,7 +127,7 @@ Default state on load: **collapsed**, no section open.
   - *Resolution* → `Select` bound to `aspectRatio`, labeled like `1:1 (1080 x 1080)`
     using `ASPECT_RATIOS`.
   - *Background Color* → color swatch + hex `Input` + opacity `Input` (e.g. `FFFFFF`
-    / `100%`). **Wired** (see §4.1).
+    / `100%`). **Wired** — edits the focused **poster HTML's** background (see §4.1).
 - **Styles:** existing StylesPane, reskinned, with selection closing back as today.
 - **Assets:** lists assets currently attached to the prompt (`pendingAssets`) with
   remove; an "Add asset" control opening the file picker (reusing
@@ -167,12 +167,17 @@ textarea as today, reskinned.
 
 ### 4.1 Background Color (Properties)
 
-New app state: `bgColor` (hex string, default `#FFFFFF`) and `bgOpacity` (0–100,
-default `100`). Composited as a solid color layer **behind the rendered poster** in
-the canvas/preview (behind any animated BG and the poster content), so it shows
-through transparent areas. It is a canvas/preview backdrop control; it does not alter
-the generated HTML. Persisted alongside other editor prefs is optional (default
-in-memory is acceptable for v1; document the choice in the plan).
+Edits the **focused poster's HTML** — it sets that design's own background color +
+opacity (it is **not** a canvas/preview backdrop and does not tint the editor canvas).
+The control reads the current background color from the focused design's HTML and
+writes changes back via the same focused-design update path used by the BG/code
+flows (`handleEditorChange` / `setJobHtml` / `updateItem`), so the change is part of
+the design and is exported/persisted with it.
+
+The plan must define exactly how the color is read from and written into the HTML
+(e.g. the root/`body` background style, consistent with how `BackgroundsPane` already
+mutates the design HTML), and how opacity is represented (e.g. an alpha applied to the
+background color). The Properties control is disabled when no design is focused.
 
 ### 4.2 Info Panel
 
@@ -198,7 +203,7 @@ If no design/job is focused, the panel shows an empty state.
 | `src/components/RightPane.tsx` (+ section subcomponents) | New — icon rail, hover flyout, overlay panel, expanded accordion |
 | `src/components/PromptBar.tsx` | Rework — textarea, chips, Compare strip, Enhance/Model/Generate cluster |
 | `src/components/PropertiesPane.tsx`, `InfoPane.tsx`, `AssetsPane.tsx` | New section bodies |
-| `src/components/StylesPane.tsx`, `BackgroundsPane.tsx`, `SettingsPanel.tsx`, `HistoryList.tsx`, `CodeEditor.tsx`, `PosterCanvas.tsx` | Reskin to new tokens/primitives; PosterCanvas also renders the bg-color backdrop |
+| `src/components/StylesPane.tsx`, `BackgroundsPane.tsx`, `SettingsPanel.tsx`, `HistoryList.tsx`, `CodeEditor.tsx`, `PosterCanvas.tsx` | Reskin to new tokens/primitives (no canvas backdrop change — Background Color edits the poster HTML, §4.1) |
 | `public/` logo | Use the design-system `logo-mark.svg` (purple gradient mark) for the nav |
 
 Logo: add the design-system `assets/logo-mark.svg` to `public/` and reference it from
