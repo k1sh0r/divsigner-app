@@ -1,4 +1,10 @@
+import {
+  fetchWithRedirectGuard,
+  isTargetAllowed,
+} from "../../src/providers/relayHosts.ts";
+
 const ALLOWED_ORIGINS = [
+  "https://divsigner.space",
   "http://localhost:5173",
   "http://localhost:3000",
 ];
@@ -12,9 +18,7 @@ const UPSTREAM_TIMEOUT_MS = 180_000;
 const MAX_RETRIES = 2;
 const BASE_DELAY_MS = 1000;
 
-export const config = {
-  runtime: "edge",
-};
+// Routing is declared in netlify.toml ([[edge_functions]] path = "/api/relay").
 
 async function fetchWithRetry(
   targetUrl: string,
@@ -29,7 +33,7 @@ async function fetchWithRetry(
       controller = new AbortController();
       timeoutId = setTimeout(() => controller!.abort(), UPSTREAM_TIMEOUT_MS);
 
-      const response = await fetch(targetUrl, {
+      const response = await fetchWithRedirectGuard(targetUrl, {
         ...options,
         signal: controller.signal,
       });
@@ -85,25 +89,17 @@ export default async function handler(request: Request): Promise<Response> {
   if (!targetUrl) {
     return new Response(JSON.stringify({ error: "Missing url parameter" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
-  const allowedHosts = [
-    "api.anthropic.com",
-    "api.openai.com",
-  ];
-  const targetHost = new URL(targetUrl).hostname;
-  if (
-    !allowedHosts.some(
-      (h) => targetHost === h || targetHost.endsWith(`.${h}`),
-    )
-  ) {
+  const check = isTargetAllowed(targetUrl);
+  if (!check.ok) {
     return new Response(
-      JSON.stringify({ error: "Target URL not allowed" }),
+      JSON.stringify({ error: check.reason ?? "Target URL not allowed" }),
       {
         status: 403,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       },
     );
   }
@@ -156,7 +152,7 @@ export default async function handler(request: Request): Promise<Response> {
       }),
       {
         status: 502,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...corsHeaders },
       },
     );
   }
