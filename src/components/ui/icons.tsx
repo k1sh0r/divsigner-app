@@ -114,3 +114,61 @@ export const PauseIcon = (p: IconProps) => (
 export const PlayIcon = (p: IconProps) => (
   <Icon {...p}><path d="M6 4l14 8-14 8V4z" /></Icon>
 );
+
+/* ---- Rail / nav icons (Lucide paths) ---- */
+
+export const TerminalIcon = (p: IconProps) => (
+  <Icon {...p}><path d="M5 6l5 5-5 5M13 16h6" /></Icon>
+);
+
+export const PropertiesIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 20h4l10-10-4-4L4 16v4z" />
+    <path d="M13.5 6.5l4 4" />
+  </Icon>
+);
+
+export const ApertureIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M14.3 9.7l5.4-1.4M9.7 14.3l-5.4 1.4M9.7 9.7L4.3 8.3M14.3 14.3l5.4 1.4" />
+  </Icon>
+);
+
+export const InboxIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 13l3-9h12l3 9" />
+    <path d="M3 13v6a2 2 0 002 2h14a2 2 0 002-2v-6h-5l-2 3h-4l-2-3H3z" />
+  </Icon>
+);
+
+export const ImageIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <circle cx="8.5" cy="9.5" r="1.5" />
+    <path d="M21 16l-5-5L5 20" />
+  </Icon>
+);
+
+export const PanelToggleIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M15 4v16" />
+    <path d="M18 9l-1.5 1.5L18 12M18 14l-1.5 1.5L18 17" />
+  </Icon>
+);
+
+export const HistoryIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M3 12a9 9 0 109-9 9 9 0 00-7.5 4" />
+    <path d="M3 4v4h4" />
+    <path d="M12 8v4l3 2" />
+  </Icon>
+);
+
+export const NewIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z" />
+    <path d="M14 3v5h5M12 12v4M10 14h4" />
+  </Icon>
+);
