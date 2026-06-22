@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PromptBar, type PrimaryAction } from "./components/PromptBar";
+import { TopNav } from "./components/TopNav";
 import { PosterCanvas, type FocusInfo } from "./components/PosterCanvas";
 import { HistoryList } from "./components/HistoryList";
 import { CodeEditor } from "./components/CodeEditor";
@@ -10,10 +11,6 @@ import { parseBackgroundMeta } from "./backgrounds/parse";
 import { getBackground } from "./backgrounds/catalog";
 import {
   CloseIcon,
-  CodeIcon,
-  CompareIcon,
-  FullPageIcon,
-  ListIcon,
 } from "./components/ui/icons";
 import type { StyleImportValue } from "./components/StyleImportForm";
 import { useProviderConfig } from "./hooks/useProviderConfig";
@@ -77,6 +74,10 @@ export default function App() {
   const [view, setView] = useState<"full" | "list">("full");
   const [compare, setCompare] = useState(false);
   const [focus, setFocus] = useState<FocusInfo>({ kind: "new" });
+
+  // Hidden HTML file input — Import lives in the nav now (lifted out of
+  // PromptBar so the tree stays green between commits).
+  const htmlRef = useRef<HTMLInputElement>(null);
 
   // Drag-to-resize the editor pane.
   const rowRef = useRef<HTMLDivElement>(null);
@@ -180,6 +181,30 @@ export default function App() {
     [loadVariant, aspectRatio],
   );
 
+  // Nav Import: open the hidden HTML file picker; on file, run the existing
+  // import flow.
+  const handleHtmlFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onloadend = () => handleImportHtml(reader.result as string);
+      reader.readAsText(file);
+      e.target.value = "";
+    },
+    [handleImportHtml],
+  );
+
+  // Nav actions.
+  const handleNew = useCallback(() => {
+    setFocus({ kind: "new" });
+    setView("full");
+  }, []);
+  const handleHistory = useCallback(
+    () => setView((v) => (v === "list" ? "full" : "list")),
+    [],
+  );
+
   const handleExport = useCallback(
     async (html: string, ar: AspectRatioKey) => {
       setExporting(true);
@@ -249,6 +274,16 @@ export default function App() {
   // The editor edits whichever design is currently focused (the slide you've
   // scrolled to), so the code follows the canvas.
   const focusedDesign = focus.kind === "design" ? focus : null;
+
+  // Nav export handlers (use the focused design).
+  const handleExportPng = useCallback(() => {
+    if (!focusedDesign) return;
+    handleExport(focusedDesign.html, focusedDesign.aspectRatio);
+  }, [focusedDesign, handleExport]);
+  const handleExportHtmlNav = useCallback(() => {
+    if (!focusedDesign) return;
+    handleDownload(focusedDesign.html, focusedDesign.aspectRatio);
+  }, [focusedDesign, handleDownload]);
 
   // Get current background info for the PromptBar button
   const currentBackgroundInfo = (() => {
@@ -354,71 +389,29 @@ export default function App() {
     [updateStyle],
   );
 
-  // One toolbar-button treatment, shared by every top-bar control.
-  const toolBtn = (active: boolean) =>
-    `flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile ${
-      active
-        ? "border-accent bg-accent/15 text-text shadow-[0_0_12px_rgba(107,87,238,0.15)]"
-        : "border-border bg-surface-2 text-text-muted hover:border-border-strong hover:text-text hover:bg-surface-3"
-    }`;
-  // Segmented control inside the view switcher.
-  const segBtn = (sel: boolean) =>
-    `flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-sm font-medium transition-all duration-150 btn-tactile ${
-      sel ? "bg-surface-3 text-text shadow-sm" : "text-text-muted hover:text-text"
-    }`;
-
   return (
-    <div className="flex h-screen overflow-hidden bg-bg text-text">
+    <div className="ds-canvas flex h-screen overflow-hidden text-text">
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
-          {/* Brand wordmark */}
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Divsigner" width="28" height="28" className="h-7 w-7 rounded-md" />
-
-            <span className="font-display text-[15px] font-bold tracking-tight text-text">
-              Div<span className="text-accent-soft">signer</span>
-            </span>
-          </div>
-
-          {error && (
-            <div
-              role="alert"
-              className="ml-3 flex min-w-0 items-center gap-2 rounded-md border border-danger/40 bg-danger/10 px-2.5 py-1 text-xs text-danger animate-[fadeIn_200ms_ease]"
-            >
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-danger animate-pulse" />
-              <span className="truncate">{error}</span>
-            </div>
-          )}
-
-          <div className="ml-auto flex items-center gap-2">
-            {canCompare && (
-              <button
-                onClick={() => setCompare((c) => !c)}
-                title="Compare variants side by side"
-                className={toolBtn(compare)}
-              >
-                <CompareIcon />
-                Compare
-              </button>
-            )}
-
-            <div className="flex rounded-md border border-border bg-surface-2 p-0.5">
-              <button onClick={() => setView("full")} className={segBtn(view === "full")} title="Full page">
-                <FullPageIcon size={14} />
-                Full
-              </button>
-              <button onClick={() => setView("list")} className={segBtn(view === "list")} title="List view">
-                <ListIcon size={14} />
-                List
-              </button>
-            </div>
-
-            <button onClick={openEditor} title="Edit the HTML manually" className={toolBtn(editorOpen)}>
-              <CodeIcon />
-              Edit code
-            </button>
-          </div>
-        </header>
+        <TopNav
+          onNew={handleNew}
+          onImport={() => htmlRef.current?.click()}
+          onToggleSettings={toggleSettings}
+          settingsActive={showSettings}
+          onHistory={handleHistory}
+          historyActive={view === "list"}
+          onExportPng={handleExportPng}
+          onExportHtml={handleExportHtmlNav}
+          canExport={Boolean(focusedDesign)}
+          exporting={exporting}
+          error={error}
+        />
+        <input
+          ref={htmlRef}
+          type="file"
+          accept=".html,.htm,text/html"
+          onChange={handleHtmlFile}
+          className="hidden"
+        />
 
         <div ref={rowRef} className="flex min-h-0 flex-1">
           <div className="min-h-0 min-w-0 flex-1">
@@ -549,8 +542,11 @@ export default function App() {
           onRemoveAsset={(id) =>
             setPendingAssets((a) => a.filter((x) => x.id !== id))
           }
-          onImportHtml={handleImportHtml}
           onToggleSettings={toggleSettings}
+          showCompare={canCompare}
+          compareActive={compare}
+          onToggleCompare={() => setCompare((c) => !c)}
+          onOpenEditor={openEditor}
           onEnhancePrompt={async () => {
             if (!userPrompt.trim() || !config.apiKey) return;
             setEnhancing(true);

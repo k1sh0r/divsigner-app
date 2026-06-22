@@ -8,7 +8,8 @@ import {
 import { Dropdown, type DropdownItem } from "./ui/Dropdown";
 import {
   CloseIcon,
-  ImportIcon,
+  CodeIcon,
+  CompareIcon,
   PlusIcon,
   SettingsIcon,
   SparkleIcon,
@@ -35,8 +36,13 @@ interface PromptBarProps {
   onAttachAsset: (dataUrl: string, name: string) => void;
   onRemoveReference: (index: number) => void;
   onRemoveAsset: (id: string) => void;
-  onImportHtml: (html: string) => void;
   onToggleSettings: () => void;
+  /** Compare strip — shown when the focused job has >1 variant. */
+  showCompare?: boolean;
+  compareActive?: boolean;
+  onToggleCompare?: () => void;
+  /** Interim code-editor trigger (moves to the right pane in a later task). */
+  onOpenEditor?: () => void;
   onEnhancePrompt?: () => Promise<void>;
   enhancing?: boolean;
   canEnhance?: boolean;
@@ -121,8 +127,11 @@ export function PromptBar({
   onAttachAsset,
   onRemoveReference,
   onRemoveAsset,
-  onImportHtml,
   onToggleSettings,
+  showCompare = false,
+  compareActive = false,
+  onToggleCompare,
+  onOpenEditor,
   onEnhancePrompt,
   enhancing,
   canEnhance,
@@ -131,7 +140,6 @@ export function PromptBar({
   mode,
 }: PromptBarProps) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const htmlRef = useRef<HTMLInputElement>(null);
   const attachKind = useRef<"reference" | "asset">("reference");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -165,15 +173,6 @@ export function PromptBar({
     e.target.value = "";
   };
 
-  const handleHtmlFile = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => onImportHtml(reader.result as string);
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -195,6 +194,25 @@ export function PromptBar({
 
   return (
     <div className="border-t border-border bg-surface-2 px-5 pt-4 pb-4">
+      {showCompare && onToggleCompare && (
+        <div className="mb-3 flex items-center">
+          <button
+            type="button"
+            onClick={onToggleCompare}
+            className={`flex items-center gap-2 h-8 px-3 rounded-[var(--radius-sm)] text-[13px] font-mono font-medium tracking-[var(--tracking-mono)] transition-all duration-150 btn-tactile ${
+              compareActive ? "text-text-primary" : "text-text-muted hover:text-text-primary"
+            }`}
+            style={
+              compareActive
+                ? { background: "var(--accent-soft-rgba)", boxShadow: "inset 0 0 0 1px var(--border-accent)" }
+                : { background: "var(--glass-2)", boxShadow: "var(--emboss-neutral)" }
+            }
+          >
+            <CompareIcon size={14} />
+            Compare variants
+          </button>
+        </div>
+      )}
       {(references.length > 0 || assets.length > 0) && (
         <div className="mb-3 flex flex-wrap gap-2">
           {references.map((url, i) => (
@@ -277,23 +295,6 @@ export function PromptBar({
           )}
         </div>
 
-        <input
-          ref={htmlRef}
-          type="file"
-          accept=".html,.htm,text/html"
-          onChange={handleHtmlFile}
-          className="hidden"
-        />
-        <button
-          type="button"
-          onClick={() => htmlRef.current?.click()}
-          title="Import an existing HTML poster"
-          className={ghostBtn}
-        >
-          Import
-          <ImportIcon size={14} />
-        </button>
-
         <button
           type="button"
           onClick={onBrowseStyles}
@@ -301,6 +302,13 @@ export function PromptBar({
         >
           <span className="text-text-faint">Style</span> {selectedStyle.name}
         </button>
+
+        {onOpenEditor && (
+          <button type="button" onClick={onOpenEditor} className={ghostBtn} title="Edit the HTML manually">
+            <CodeIcon size={14} />
+            Code
+          </button>
+        )}
 
         {onBrowseBackgrounds && (
           <button
