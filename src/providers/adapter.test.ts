@@ -83,6 +83,18 @@ describe("buildRequestBody — family-routed thinking suppression", () => {
     expect(body.reasoning_effort).toBeUndefined();
   });
 
+  it("keeps MiniMax M3 thinking ON but splits it out of the content stream", () => {
+    const body = buildRequestBody(cfg({ model: "MiniMax-M3" }), messages, true) as any;
+    // Thinking is NOT disabled — it is routed to a separate reasoning channel.
+    expect(body.reasoning_split).toBe(true);
+    expect(body.thinking).toBeUndefined();
+  });
+
+  it("gives interleaved MiniMax models extra token headroom (not the 8192 default)", () => {
+    expect(getRecommendedMaxTokens("MiniMax-M3")).toBe(32768);
+    expect(getRecommendedMaxTokens("minimax-m2")).toBe(32768);
+  });
+
   it("anthropic format carries the full token cap and no openai thinking fields", () => {
     const body = buildRequestBody(
       cfg({ providerId: "anthropic", model: "claude-sonnet-4-20250514" }),

@@ -24,6 +24,17 @@ export const MODEL_TOKEN_LIMITS: Record<string, ModelTokenLimits> = {
   "GLM-5.1": { maxTokens: 16384, contextWindow: 128000, recommendedOutput: 8192 },
   "GLM-5": { maxTokens: 16384, contextWindow: 128000, recommendedOutput: 8192 },
 
+  // MiniMax models (Moonshot/MiniMax) — interleaved-thinking models that reason
+  // BETWEEN bursts of output. Thinking and HTML share one output budget, so they
+  // need extra headroom: an under-provisioned cap is exhausted by a mid-stream
+  // reasoning pass before "</html>" is reached. The early-termination in
+  // consumeStream stops the stream as soon as the document closes, so a generous
+  // cap is free on clean output and only rescues the heavy interleaved cases.
+  "minimax-m2": { maxTokens: 32768, contextWindow: 192000, recommendedOutput: 16384 },
+  "MiniMax-M2": { maxTokens: 32768, contextWindow: 192000, recommendedOutput: 16384 },
+  "minimax-m3": { maxTokens: 32768, contextWindow: 1000000, recommendedOutput: 16384 },
+  "MiniMax-M3": { maxTokens: 32768, contextWindow: 1000000, recommendedOutput: 16384 },
+
   // Kimi models (Moonshot)
   "kimi-k2.5": { maxTokens: 16384, contextWindow: 256000, recommendedOutput: 8192 },
   "kimi-k2.6": { maxTokens: 16384, contextWindow: 256000, recommendedOutput: 8192 },
@@ -123,6 +134,15 @@ export function reasoningControls(
   // reasoning pass can't consume the output budget or stall the stream.
   if (/glm/.test(m)) return { thinking: { type: "disabled" } };
 
+  // MiniMax M3: interleaved thinking CANNOT be cleanly disabled — with
+  // thinking.type=disabled the model still leaks chain-of-thought into the
+  // visible text (MiniMax-M3 issue #10). So keep thinking ON but set
+  // reasoning_split, which routes it to a separate reasoning channel
+  // (handled by consumeStream's onThinking) instead of inline <think> tags
+  // in `content`. This stops thinking from interleaving with the HTML stream
+  // and from inflating the token budget mid-document.
+  if (/minimax-m3/.test(m)) return { reasoning_split: true };
+
   // Qwen3: supports a real bound — keep a little reasoning, capped hard.
   if (/qwen3/.test(m)) return { enable_thinking: true, thinking_budget: 1024 };
 
@@ -130,7 +150,9 @@ export function reasoningControls(
   if (/\bo[1-9]\b/.test(m) || /gpt-5/.test(m)) return { reasoning_effort: "low" };
 
   // DeepSeek-reasoner can't be bounded; deepseek-chat doesn't think. Others
-  // (Kimi, MiniMax, unknown/custom) get nothing — no field, no rejection risk.
+  // (Kimi, MiniMax M2, unknown/custom) get nothing — no field, no rejection
+  // risk. For these the prompt's think-first directive plus the generous token
+  // budget are the levers that keep thinking from truncating the document.
   return {};
 }
 

@@ -47,6 +47,10 @@ export interface OpenAICompletionRequest {
   enable_thinking?: boolean;
   /** Qwen3 reasoning-token cap when thinking is enabled. */
   thinking_budget?: number;
+  /** MiniMax M3: route thinking into a separate reasoning channel (reasoning_content)
+   *  instead of inline <think> tags in `content`, so it never interleaves with the
+   *  HTML stream. Keeps thinking ON — does not disable it. */
+  reasoning_split?: boolean;
 }
 
 type AnthropicContentPart =

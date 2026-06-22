@@ -27,12 +27,14 @@ HARD CONSTRAINTS:
 `;
 
 const OUTPUT_DIRECTIVE = `
-OUTPUT — CRITICAL (prevents timeouts):
-- Do NOT think, reason, analyze, plan, or explain. Skip ALL chain-of-thought.
-- Begin outputting HTML IMMEDIATELY, with the very first token being "<" of <!DOCTYPE html>.
+OUTPUT — CRITICAL (prevents truncated / incomplete posters):
+- If you need to think, plan, or reason, do ALL of it FIRST — completely — BEFORE the first character of HTML. Finish thinking before you start writing.
+- Then emit the ENTIRE document in ONE continuous, uninterrupted pass. The moment the first "<" of <!DOCTYPE html> appears, you are in OUTPUT mode: do NOT pause to think, re-plan, reconsider, or revise. There must be NO thinking, reasoning, or commentary of any kind between <!DOCTYPE html> and </html>.
+- Never stop partway through the HTML to reason and then resume — interleaving thinking with generation exhausts the token budget before the document is finished and produces a broken poster. One clean top-to-bottom stream only.
 - Do NOT wrap the code in markdown fences (no \`\`\`html).
 - Do NOT write any prose before or after the document. No commentary, no "Here is...", no explanation.
-- End the document with exactly "</html>" and then stop.
+- End the document with exactly "</html>" and then STOP IMMEDIATELY. The "</html>" tag is the final token of your entire response.
+- Once "</html>" is emitted you are DONE: do NOT rethink, reconsider, revise, critique, verify, regenerate, or output a second version. No reflection or self-review after the HTML — terminate the turn.
 - Be efficient: every line must be part of the final HTML. No filler, no repetition.
 `;
 
