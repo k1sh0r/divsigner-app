@@ -246,7 +246,7 @@ Left cluster: `<img src="/logo-mark.svg" width=30 height=30 />` + three nav butt
 
 - [ ] **Step 2: Wire in `App.tsx`.** Replace the `<header>` with `<TopNav … />`. Handlers:
   - `onNew`: `setFocus({ kind: "new" }); setView("full");` (and close any open right-pane section — see Task 5 state).
-  - `onImport`: trigger the existing hidden HTML file input (lift the `htmlRef` file-input + `handleHtmlFile` logic out of PromptBar into App, or expose a callback). Simplest: move the HTML `<input type=file>` and its handler to App, call `.click()` from `onImport` and from PromptBar's Import chip if retained.
+  - `onImport`: **fully move** the hidden HTML file `<input>` + `handleHtmlFile` from PromptBar into App in this task (keep the tree green between commits — don't leave a half-lifted flow). App keeps `htmlRef`, calls `.click()` on `onImport`, and `handleHtmlFile` calls the existing `handleImportHtml`. PromptBar's `onImportHtml` prop and Import button are removed here (Task 10 already assumes the nav owns Import).
   - `onToggleSettings`: existing `toggleSettings`.
   - `onHistory`: `setView(view === "list" ? "full" : "list")` (History toggles the list view; `historyActive = view === "list"`).
   - `onExportPng`/`onExportHtml`: call `handleExport`/`handleDownload` with the focused design's html + aspect. `canExport = Boolean(focusedDesign)`.
@@ -353,7 +353,7 @@ describe("bgColor", () => {
 
 - [ ] **Step 2: Run** `npx vitest run src/utils/bgColor.test.ts` → FAIL (module not found).
 
-- [ ] **Step 3: Implement `src/utils/bgColor.ts`.** Represent color as `background: rgba(r,g,b,a)` on the `<body>` (or root element). `writeBgColor` sets/replaces the `background` declaration in the body's `style` attribute (creating `style` if absent; preserving other declarations). `readBgColor` parses it back to `{ hex, opacity }` (hex uppercase no `#`, opacity 0–100), defaulting to `{ hex: "FFFFFF", opacity: 100 }` when absent. Accept both `#rrggbb` and `rgba()` forms when reading. Use regex/string ops (no DOM) so it runs under jsdom and SSR-free.
+- [ ] **Step 3: Implement `src/utils/bgColor.ts`.** Represent color as `background: rgba(r,g,b,a)` on the poster's root background element. `writeBgColor` sets/replaces the `background` declaration in that element's `style` attribute (creating `style` if absent; preserving other declarations). **Target selection:** prefer the `<body>` tag; if the generated HTML is a fragment with no `<body>` (generated posters may be fragments), fall back to the first top-level element/wrapper, and if none exists, wrap the content so the color still applies. `readBgColor` parses it back to `{ hex, opacity }` (hex uppercase no `#`, opacity 0–100), defaulting to `{ hex: "FFFFFF", opacity: 100 }` when absent. Accept both `#rrggbb` and `rgba()` forms when reading. Use regex/string ops (no DOM) so it runs under jsdom and SSR-free. Add a test for the no-`<body>` fragment case.
 
 - [ ] **Step 4: Run** the tests → PASS.
 
@@ -474,7 +474,7 @@ git commit -m "feat(ui): Info pane (prompt/preferences + live model thinking/out
 
 Prep for the prompt-bar model dropdown so both call sites share one fetch+fallback (reviewer note: Anthropic has `supportsModelsEndpoint: false`).
 
-- [ ] **Step 1: Extract** the model-fetch effect from `SettingsPanel.tsx` (`availableModels`, `loadingModels`, the `/models` fetch keyed on `apiKey`/`providerId`/`customBaseUrl`/`def.supportsModelsEndpoint`) into `useModelList(config)` returning `{ models: string[]; loading: boolean; supportsEndpoint: boolean }`.
+- [ ] **Step 1: Extract** the model-list logic from `SettingsPanel.tsx` into `useModelList(config)` returning `{ models: string[]; loading: boolean; supportsEndpoint: boolean }`. Note (verified): SettingsPanel does **not** fetch `/models` directly — it obtains models via `onValidate()` → `validateApiKey(config)`, which returns `{ ..., models }`. Base the hook on `validateApiKey(config)` directly (run it in an effect keyed on `apiKey`/`providerId`/`customBaseUrl`/`def.supportsModelsEndpoint`; skip when `!apiKey || !def.supportsModelsEndpoint` and return `supportsEndpoint:false`).
 - [ ] **Step 2: Refactor `SettingsPanel`** to consume `useModelList` (behavior identical).
 - [ ] **Step 3: Verify** `npm test` + `npm run build` → PASS; Settings still lists models.
 - [ ] **Step 4: Commit**
