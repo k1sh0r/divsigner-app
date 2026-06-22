@@ -1,0 +1,9 @@
+{
+  "framework": "vite",
+  "functions": {
+    "api/relay.ts": {
+      "runtime": "edge",
+      "maxDuration": 300
+    }
+  }
+}

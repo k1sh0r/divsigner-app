@@ -1,0 +1,14 @@
+{
+  "name": "Divsigner — Design-as-Code Poster Generator",
+  "short_name": "Divsigner",
+  "description": "Turn prompts into design-as-code posters. Generate self-contained HTML designs, tweak them live, and export high-resolution PNGs — all in your browser.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#7C3AED",
+  "theme_color": "#7C3AED",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

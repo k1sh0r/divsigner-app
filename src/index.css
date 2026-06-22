@@ -1,0 +1,296 @@
+@import "tailwindcss";
+
+/* ---- Self-hosted fonts ---- */
+
+/* Archivo */
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/archivo-v35-latin-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/archivo-v35-latin-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/archivo-v35-latin-900.woff2") format("woff2");
+}
+
+/* JetBrains Mono */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/jetbrains-mono-v18-latin-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/jetbrains-mono-v18-latin-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/jetbrains-mono-v18-latin-700.woff2") format("woff2");
+}
+
+/* Playfair Display */
+@font-face {
+  font-family: "Playfair Display";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/playfair-display-v36-latin-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Playfair Display";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/playfair-display-v36-latin-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Playfair Display";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/playfair-display-v36-latin-900.woff2") format("woff2");
+}
+
+/* Inter */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/inter-v18-latin-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/inter-v18-latin-700.woff2") format("woff2");
+}
+
+/* Space Grotesk */
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/space-grotesk-v17-latin-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/space-grotesk-v17-latin-700.woff2") format("woff2");
+}
+
+/* ---- Design tokens ----
+   Brand purple is hsl(251 82% 64%) = #6B57EE. Secondary accent orange #FF7605.
+   Sharp corners (--radius:0) and Chivo (headings) / Inter (body) /
+   JetBrains Mono (mono). */
+@theme {
+  --color-bg: #0A0A0A;
+  --color-surface: #111114;
+  --color-surface-2: #1A1A1F;
+  --color-surface-3: #22272E;
+  --color-border: #333333;
+  --color-border-strong: #4B5563;
+  --color-accent: #6B57EE;
+  --color-accent-hover: #5A46D6;
+  /* Lighter accent for text/labels on dark surfaces (replaces ad-hoc
+     #8B7CFF / #b3a8ff). Meets 4.5:1 on surface backgrounds. */
+  --color-accent-soft: #A99CFF;
+  --color-secondary: #FF7605;
+  --color-secondary-hover: #E66A00;
+  --color-text: #FAFAFA;
+  --color-text-muted: #B3B3B3;
+  --color-text-faint: #6B7280;
+  --color-success: #10B981;
+  --color-danger: #EF4444;
+  --color-info: #3B82F6;
+
+  /* Brand uses sharp corners. Everything maps onto this 0 / 2 / 4 / 6 scale —
+     no Tailwind-default rounded-xl (12px) generic curves. */
+  --radius-sm: 0px;
+  --radius-md: 2px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+
+  /* Archivo is the shipped display face (Chivo is not bundled, so it would
+     silently fall back anyway). */
+  --font-display: "Archivo", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root {
+  /* Elevation scale — use these instead of ad-hoc shadow-black/60 etc. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-pane: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --shadow-menu: 0 12px 40px rgba(0, 0, 0, 0.6);
+  --ring-accent: 0 0 0 2px rgba(107, 87, 238, 0.55);
+  /* Branded accent surface — used on the wordmark and primary CTA. */
+  --gradient-accent: linear-gradient(180deg, #7A67F2 0%, #5A46D6 100%);
+
+  /* Transition timing — refined for tactile, premium feel */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---- Animation keyframes ---- */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes menuEnter {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* ---- Shared UI utilities — keep chrome consistent across components ---- */
+
+/* Section / eyebrow label. One treatment everywhere (Archivo, uppercase). */
+.section-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Branded accent fill for the primary CTA + wordmark. */
+.accent-fill { background: var(--gradient-accent); }
+
+/* Thin custom scrollbar for panes (replaces hidden/native inconsistency). */
+.scroll-thin { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }
+.scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 0;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.scroll-thin::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+
+/* Focus glow — a premium, intentional focus treatment for inputs/textareas. */
+.focus-glow {
+  transition: box-shadow var(--duration-base) var(--ease-out-expo),
+              border-color var(--duration-base) var(--ease-out-expo);
+}
+.focus-glow:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px rgba(107, 87, 238, 0.35), 0 0 20px rgba(107, 87, 238, 0.12);
+}
+
+/* Panel enter animation for sidebars/settings panes. */
+.panel-enter {
+  animation: slideInRight var(--duration-slow) var(--ease-out-expo) both;
+}
+
+/* Menu enter animation for dropdowns/attach menus. */
+.menu-enter {
+  animation: menuEnter var(--duration-fast) var(--ease-out-expo) both;
+}
+
+/* Stagger children fade-in for lists/galleries. */
+.stagger-children > * {
+  animation: fadeIn var(--duration-slow) var(--ease-out-expo) both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 30ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 60ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 90ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 180ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 210ms; }
+
+/* Tactile button press feedback — subtle scale-y push. */
+.btn-tactile {
+  transition: transform var(--duration-fast) var(--ease-out-expo),
+              filter var(--duration-fast) var(--ease-out-expo);
+}
+.btn-tactile:active:not(:disabled) {
+  transform: scale(0.98) translateY(0.5px);
+}
+
+/* Shimmer loading effect for skeletons/buttons. */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Dot rail active indicator with pulse. */
+.dot-active {
+  animation: dotPulse 2s var(--ease-spring) infinite;
+}
