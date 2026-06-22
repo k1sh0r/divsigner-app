@@ -150,8 +150,11 @@ Reworked `PromptBar`:
   - *background* chip → opens the BG section/pane
 - **Bottom-right cluster:** **Enhance** · **Model dropdown** · **Generate**.
   - *Enhance* — existing `onEnhancePrompt` (disabled until prompt + API key).
-  - *Model dropdown* — selects `config.model` (and persists via `updateConfig`);
-    options from the active provider's model list.
+  - *Model dropdown* — selects `config.model` (and persists via `updateConfig`).
+    Reuse the existing model-fetch/fallback logic from `SettingsPanel` (dynamic
+    `/models` fetch with loading state + `availableModels`; manual-entry fallback
+    for providers where `supportsModelsEndpoint: false`, e.g. Anthropic, which has
+    only its `defaultModel` + manual input — do **not** assume a static list).
   - *Generate* — the existing contextual primary action: Generate / Iterate / Stop /
     Retry, styled as the tactile primary (Stop = danger, Retry = warning).
 - **Compare strip** — a thin bar **just above** the prompt area, shown only when the
