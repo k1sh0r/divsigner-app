@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
   CloseIcon,
   InfoIcon,
@@ -35,40 +35,7 @@ interface RightPaneProps {
 
 const RAIL_WIDTH = 48;
 const EXPANDED_WIDTH = 320;
-const OVERLAY_WIDTH = 372;
-
-function RailButton({
-  icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: ReactNode;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      className="flex items-center justify-center transition-colors duration-150"
-      style={{
-        width: 40,
-        height: 40,
-        margin: "4px auto",
-        borderRadius: "var(--radius-sm)",
-        color: active ? "var(--text-primary)" : "var(--text-tertiary)",
-        background: active ? "var(--accent-soft-rgba)" : "transparent",
-        boxShadow: active ? "inset 0 0 0 1px var(--border-accent)" : "none",
-      }}
-    >
-      {icon}
-    </button>
-  );
-}
+const OVERLAY_WIDTH = 380;
 
 export function RightPane({
   expanded,
@@ -77,8 +44,6 @@ export function RightPane({
   onOpenSection,
   sections,
 }: RightPaneProps) {
-  const [hovered, setHovered] = useState(false);
-
   // ---- Expanded: docked accordion column (resizes the canvas) ----
   if (expanded) {
     return (
@@ -101,8 +66,8 @@ export function RightPane({
                 <button
                   type="button"
                   onClick={() => onOpenSection(open ? null : s.id)}
-                  className="flex w-full items-center gap-3 px-4 transition-colors duration-150"
-                  style={{ height: 44, color: "var(--text-secondary)" }}
+                  className="flex w-full items-center gap-3 transition-colors duration-150"
+                  style={{ height: 44, padding: "0 var(--space-4)", color: "var(--text-secondary)" }}
                 >
                   <span style={{ color: open ? "var(--accent-hover)" : "var(--text-tertiary)", display: "inline-flex" }}>
                     {s.icon}
@@ -110,16 +75,18 @@ export function RightPane({
                   <span className="font-mono text-[13px] font-medium tracking-[var(--tracking-mono)] flex-1 text-left">
                     {s.label}
                   </span>
-                  <span className="font-mono text-[16px] text-text-faint">{open ? "−" : "+"}</span>
+                  <span className="font-mono text-[16px]" style={{ color: "var(--text-faint)" }}>{open ? "−" : "+"}</span>
                 </button>
                 {open && (
-                  <div className="px-4 pb-4 animate-[fadeIn_200ms_ease]">{s.body}</div>
+                  <div className="animate-[fadeIn_200ms_ease]" style={{ paddingBottom: "var(--space-4)" }}>
+                    {s.body}
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
-        <div style={{ borderTop: "1px solid var(--border-subtle)" }} className="p-2">
+        <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "var(--space-2)" }}>
           <button
             type="button"
             onClick={onToggleExpanded}
@@ -140,20 +107,21 @@ export function RightPane({
     );
   }
 
-  // ---- Collapsed: icon rail (+ hover flyout / overlay panel) ----
+  // ---- Collapsed: floating icon rail on the right edge ----
+  // The entire collapsed RightPane is position:absolute so it floats
+  // over the canvas without taking flex space. The parent row must
+  // have position:relative.
   const activeSection = openSection ? sections.find((s) => s.id === openSection) ?? null : null;
 
   return (
     <div
-      className="relative shrink-0"
-      style={{ width: RAIL_WIDTH }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className="absolute right-0 top-0 bottom-0 z-30"
+      style={{ width: RAIL_WIDTH + (activeSection ? OVERLAY_WIDTH : 0) }}
     >
-      {/* Overlay panel: section body floating to the left of the rail */}
+      {/* Overlay panel: opens to the left of the rail */}
       {activeSection && (
         <div
-          className="absolute bottom-0 top-0 flex flex-col"
+          className="absolute top-0 bottom-0 flex flex-col"
           style={{
             right: RAIL_WIDTH,
             width: OVERLAY_WIDTH,
@@ -161,24 +129,29 @@ export function RightPane({
             backdropFilter: "var(--blur-lg)",
             WebkitBackdropFilter: "var(--blur-lg)",
             boxShadow: "var(--glass-edge), var(--shadow-lg)",
-            borderLeft: "1px solid var(--border-subtle)",
+            borderRight: "1px solid var(--border-subtle)",
             borderRadius: "var(--radius-lg) 0 0 var(--radius-lg)",
-            zIndex: 40,
           }}
         >
           <div
-            className="flex shrink-0 items-center justify-between px-4"
-            style={{ height: 44, borderBottom: "1px solid var(--border-subtle)" }}
+            className="flex shrink-0 items-center justify-between"
+            style={{
+              height: 44,
+              padding: "0 var(--space-4)",
+              borderBottom: "1px solid var(--border-subtle)",
+            }}
           >
-            <span className="font-mono text-[13px] font-medium tracking-[var(--tracking-mono)] text-text">
+            <span className="font-mono text-[13px] font-medium tracking-[var(--tracking-mono)]" style={{ color: "var(--text-primary)" }}>
               {activeSection.label}
             </span>
             <button
               type="button"
               onClick={() => onOpenSection(null)}
               aria-label="Close"
-              className="flex items-center justify-center text-text-muted hover:text-text transition-colors duration-150"
-              style={{ width: 28, height: 28, borderRadius: "var(--radius-xs)" }}
+              className="flex items-center justify-center transition-colors duration-150"
+              style={{ width: 28, height: 28, borderRadius: "var(--radius-xs)", color: "var(--text-muted)" }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
             >
               <CloseIcon size={16} />
             </button>
@@ -187,52 +160,11 @@ export function RightPane({
         </div>
       )}
 
-      {/* Hover flyout: section labels + Expand (only when no section open) */}
-      {hovered && !activeSection && (
-        <div
-          className="absolute top-0"
-          style={{
-            right: RAIL_WIDTH,
-            width: 200,
-            background: "var(--glass-3)",
-            backdropFilter: "var(--blur-lg)",
-            WebkitBackdropFilter: "var(--blur-lg)",
-            boxShadow: "var(--glass-edge), var(--shadow-md)",
-            borderLeft: "1px solid var(--border-subtle)",
-            borderRadius: "var(--radius-md) 0 0 var(--radius-md)",
-            padding: 6,
-            zIndex: 40,
-          }}
-        >
-          {sections.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => onOpenSection(s.id)}
-              className="flex w-full items-center gap-3 px-3 transition-colors duration-150"
-              style={{ height: 36, borderRadius: "var(--radius-sm)", color: "var(--text-secondary)" }}
-            >
-              <span style={{ color: "var(--text-tertiary)", display: "inline-flex" }}>{s.icon}</span>
-              <span className="font-mono text-[12px] font-medium tracking-[var(--tracking-mono)]">{s.label}</span>
-            </button>
-          ))}
-          <div style={{ borderTop: "1px solid var(--border-subtle)", margin: "6px 0" }} />
-          <button
-            type="button"
-            onClick={onToggleExpanded}
-            className="flex w-full items-center gap-3 px-3 transition-colors duration-150"
-            style={{ height: 36, borderRadius: "var(--radius-sm)", color: "var(--text-secondary)" }}
-          >
-            <span style={{ color: "var(--text-tertiary)", display: "inline-flex" }}><PanelToggleIcon size={16} /></span>
-            <span className="font-mono text-[12px] font-medium tracking-[var(--tracking-mono)]">Expand</span>
-          </button>
-        </div>
-      )}
-
-      {/* The rail itself */}
+      {/* The rail itself — floating strip on the far right */}
       <div
-        className="flex h-full flex-col items-center"
+        className="absolute right-0 top-0 bottom-0 flex flex-col items-center"
         style={{
+          width: RAIL_WIDTH,
           background: "var(--glass-1)",
           backdropFilter: "var(--blur-md)",
           WebkitBackdropFilter: "var(--blur-md)",
@@ -242,22 +174,57 @@ export function RightPane({
       >
         <div className="flex min-h-0 flex-1 flex-col items-center">
           {sections.map((s) => (
-            <RailButton
-              key={s.id}
-              icon={s.icon}
-              label={s.label}
-              active={openSection === s.id}
-              onClick={() => onOpenSection(openSection === s.id ? null : s.id)}
-            />
+            <div key={s.id} className="group relative">
+              <button
+                type="button"
+                onClick={() => onOpenSection(openSection === s.id ? null : s.id)}
+                title={s.label}
+                aria-label={s.label}
+                className="flex items-center justify-center transition-colors duration-150"
+                style={{
+                  width: 40,
+                  height: 40,
+                  margin: "4px auto",
+                  borderRadius: "var(--radius-sm)",
+                  color: openSection === s.id ? "var(--text-primary)" : "var(--text-tertiary)",
+                  background: openSection === s.id ? "var(--accent-soft-rgba)" : "transparent",
+                  boxShadow: openSection === s.id ? "inset 0 0 0 1px var(--border-accent)" : "none",
+                }}
+              >
+                {s.icon}
+              </button>
+              {/* Hover label tooltip — appears to the left of the icon on hover */}
+              <span
+                className="absolute right-full top-1/2 -translate-y-1/2 font-mono text-[11px] font-medium tracking-[var(--tracking-mono)] whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                style={{
+                  color: "var(--text-secondary)",
+                  paddingRight: 8,
+                  background: "var(--glass-2)",
+                  padding: "2px 8px",
+                  borderRadius: "var(--radius-xs)",
+                }}
+              >
+                {s.label}
+              </span>
+            </div>
           ))}
         </div>
-        <div className="p-1">
-          <RailButton
-            icon={<PanelToggleIcon size={18} />}
-            label="Expand"
-            active={false}
+        <div style={{ padding: "var(--space-1)" }}>
+          <button
+            type="button"
             onClick={onToggleExpanded}
-          />
+            title="Expand"
+            aria-label="Expand"
+            className="flex items-center justify-center transition-colors duration-150"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "var(--radius-sm)",
+              color: "var(--text-tertiary)",
+            }}
+          >
+            <PanelToggleIcon size={18} />
+          </button>
         </div>
       </div>
     </div>
