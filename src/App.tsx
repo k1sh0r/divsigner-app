@@ -3,6 +3,7 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { PromptBar, type PrimaryAction } from "./components/PromptBar";
 import { TopNav } from "./components/TopNav";
 import { RightPane, SectionIcons, type Section } from "./components/RightPane";
+import { PropertiesPane } from "./components/panes/PropertiesPane";
 import { PosterCanvas, type FocusInfo } from "./components/PosterCanvas";
 import { HistoryList } from "./components/HistoryList";
 import { CodeEditor } from "./components/CodeEditor";
@@ -20,6 +21,7 @@ import { useStyles } from "./hooks/useStyles";
 import { exportPng, downloadHtml } from "./export/poster";
 import { sanitizeHTML } from "./utils/sanitize";
 import { resolveAssets } from "./utils/assets";
+import { readBgColor, writeBgColor } from "./utils/bgColor";
 import { STYLES } from "./styles/index";
 import type { Style } from "./styles/types";
 import type { AspectRatioKey } from "./utils/constants";
@@ -253,6 +255,19 @@ export default function App() {
   // scrolled to), so the code follows the canvas.
   const focusedDesign = focus.kind === "design" ? focus : null;
 
+  // Background color read from the focused poster's HTML (Properties pane).
+  const focusedBg = focusedDesign ? readBgColor(focusedDesign.html) : null;
+  const handleBgChange = useCallback(
+    (hex: string, opacity: number) => {
+      if (focus.kind !== "design") return;
+      const newHtml = writeBgColor(focus.html, hex, opacity);
+      const ref = focus.ref;
+      if (ref.kind === "job") setJobHtml(ref.jobId, newHtml);
+      else updateItem(ref.batchId, ref.index, newHtml);
+    },
+    [focus, setJobHtml, updateItem],
+  );
+
   // Nav export handlers (use the focused design).
   const handleExportPng = useCallback(() => {
     if (!focusedDesign) return;
@@ -436,9 +451,14 @@ export default function App() {
                 label: "Properties",
                 icon: SectionIcons.properties,
                 body: (
-                  <div className="px-4 py-5 text-sm text-text-faint">
-                    Properties (Task 6)
-                  </div>
+                  <PropertiesPane
+                    count={count}
+                    onCountChange={setCount}
+                    aspectRatio={aspectRatio}
+                    onAspectChange={setAspectRatio}
+                    bg={focusedBg}
+                    onBgChange={handleBgChange}
+                  />
                 ),
               },
               {
