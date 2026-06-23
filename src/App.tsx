@@ -4,6 +4,7 @@ import { PromptBar, type PrimaryAction } from "./components/PromptBar";
 import { TopNav } from "./components/TopNav";
 import { RightPane, SectionIcons, type Section } from "./components/RightPane";
 import { PropertiesPane } from "./components/panes/PropertiesPane";
+import { AssetsPane } from "./components/panes/AssetsPane";
 import { PosterCanvas, type FocusInfo } from "./components/PosterCanvas";
 import { HistoryList } from "./components/HistoryList";
 import { CodeEditor } from "./components/CodeEditor";
@@ -78,6 +79,8 @@ export default function App() {
   // Hidden HTML file input — Import lives in the nav now (lifted out of
   // PromptBar so the tree stays green between commits).
   const htmlRef = useRef<HTMLInputElement>(null);
+  // Hidden asset file input — triggered from Assets pane.
+  const assetRef = useRef<HTMLInputElement>(null);
 
   // Iterate the design the user is focused on; fresh when on the "New" slide.
   const iterating = focus.kind === "design";
@@ -111,6 +114,21 @@ export default function App() {
       setPendingAssets((a) => [...a, asset]);
     },
     [addAsset],
+  );
+
+  // Assets pane: hidden file input → handleAttachAsset.
+  const handleAssetFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleAttachAsset(reader.result as string, file.name);
+      };
+      reader.readAsDataURL(file);
+      e.target.value = "";
+    },
+    [handleAttachAsset],
   );
 
   // Record each finished job into history once (so it persists after the
@@ -382,6 +400,13 @@ export default function App() {
           onChange={handleHtmlFile}
           className="hidden"
         />
+        <input
+          ref={assetRef}
+          type="file"
+          accept="image/*"
+          onChange={handleAssetFile}
+          className="hidden"
+        />
 
         <div className="flex min-h-0 flex-1">
           <div className="min-h-0 min-w-0 flex-1">
@@ -484,9 +509,11 @@ export default function App() {
                 label: "Assets",
                 icon: SectionIcons.assets,
                 body: (
-                  <div className="px-4 py-5 text-sm text-text-faint">
-                    Assets (Task 7)
-                  </div>
+                  <AssetsPane
+                    assets={pendingAssets}
+                    onAdd={() => assetRef.current?.click()}
+                    onRemove={(id) => setPendingAssets((a) => a.filter((x) => x.id !== id))}
+                  />
                 ),
               },
               {
