@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PromptBar, type PrimaryAction } from "./components/PromptBar";
 import { TopNav } from "./components/TopNav";
+import { RightPane, SectionIcons, type Section } from "./components/RightPane";
 import { PosterCanvas, type FocusInfo } from "./components/PosterCanvas";
 import { HistoryList } from "./components/HistoryList";
 import { CodeEditor } from "./components/CodeEditor";
@@ -9,9 +10,6 @@ import { StylesPane } from "./components/StylesPane";
 import { BackgroundsPane } from "./components/BackgroundsPane";
 import { parseBackgroundMeta } from "./backgrounds/parse";
 import { getBackground } from "./backgrounds/catalog";
-import {
-  CloseIcon,
-} from "./components/ui/icons";
 import type { StyleImportValue } from "./components/StyleImportForm";
 import { useProviderConfig } from "./hooks/useProviderConfig";
 import { useGeneration } from "./hooks/useGeneration";
@@ -55,8 +53,6 @@ export default function App() {
   const { customStyles, addStyle, updateStyle, removeStyle } = useStyles();
 
   const [selectedPreset, setSelectedPreset] = useState<Style>(STYLES[0]!);
-  const [stylesPaneOpen, setStylesPaneOpen] = useState(false);
-  const [backgroundsPaneOpen, setBackgroundsPaneOpen] = useState(false);
   // Global pause for all background layers — stops animations and prevents crashing
   // backgrounds from consuming resources. Controlled by the pause button in BackgroundsPane.
   const [bgPaused, setBgPaused] = useState(false);
@@ -67,37 +63,19 @@ export default function App() {
   const [count, setCount] = useState(1);
   const [pendingRefs, setPendingRefs] = useState<string[]>([]);
   const [pendingAssets, setPendingAssets] = useState<StoredAsset[]>([]);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editorWidth, setEditorWidth] = useState(460);
   const [showSettings, setShowSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [view, setView] = useState<"full" | "list">("full");
   const [compare, setCompare] = useState(false);
   const [focus, setFocus] = useState<FocusInfo>({ kind: "new" });
 
+  // Right pane state machine (Photoshop-style collapsible inspector).
+  const [paneExpanded, setPaneExpanded] = useState(false);
+  const [openSection, setOpenSection] = useState<Section | null>(null);
+
   // Hidden HTML file input — Import lives in the nav now (lifted out of
   // PromptBar so the tree stays green between commits).
   const htmlRef = useRef<HTMLInputElement>(null);
-
-  // Drag-to-resize the editor pane.
-  const rowRef = useRef<HTMLDivElement>(null);
-  const startResize = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    const onMove = (ev: PointerEvent) => {
-      const rect = rowRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const w = rect.right - ev.clientX;
-      setEditorWidth(Math.max(320, Math.min(rect.width - 360, w)));
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      document.body.style.userSelect = "";
-    };
-    document.body.style.userSelect = "none";
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  }, []);
 
   // Iterate the design the user is focused on; fresh when on the "New" slide.
   const iterating = focus.kind === "design";
@@ -316,37 +294,14 @@ export default function App() {
     [focus, setJobHtml, updateItem],
   );
 
-  const openEditor = () => {
-    setEditorOpen((o) => !o);
-    setShowSettings(false);
-    setStylesPaneOpen(false);
-  };
-  const toggleSettings = () => {
-    setShowSettings((s) => !s);
-    setEditorOpen(false);
-    setStylesPaneOpen(false);
-  };
-  const openStylesPane = () => {
-    setStylesPaneOpen((o) => !o);
-    setEditorOpen(false);
-    setShowSettings(false);
-    setBackgroundsPaneOpen(false);
-  };
-
-  const openBackgroundsPane = () => {
-    setBackgroundsPaneOpen((o) => !o);
-    setEditorOpen(false);
-    setShowSettings(false);
-    setStylesPaneOpen(false);
-  };
+  const toggleSettings = () => setShowSettings((s) => !s);
+  const openStylesPane = () => setOpenSection((s) => (s === "styles" ? null : "styles"));
+  const openBackgroundsPane = () => setOpenSection((s) => (s === "bg" ? null : "bg"));
 
   // Stable handlers for the Backgrounds panel. Without these, the panel (and
   // its live WebGL preview) would re-render on every streamed token while a
   // generation runs, causing the backgrounds to flicker/restart.
-  const closeBackgroundsPane = useCallback(
-    () => setBackgroundsPaneOpen(false),
-    [],
-  );
+  const closeBackgroundsPane = useCallback(() => setOpenSection(null), []);
   const toggleBgPause = useCallback(() => setBgPaused((p) => !p), []);
   const handleBackgroundUpdateHtml = useCallback(
     (newHtml: string) => {
@@ -361,10 +316,10 @@ export default function App() {
   // Stable handlers for the Styles panel — keep the memoized StylesPane from
   // re-rendering (and remounting its preview iframes) on prompt typing /
   // generation, which otherwise made the style list flicker.
-  const closeStylesPane = useCallback(() => setStylesPaneOpen(false), []);
+  const closeStylesPane = useCallback(() => setOpenSection(null), []);
   const handleSelectStyle = useCallback((s: Style) => {
     setSelectedPreset(s);
-    setStylesPaneOpen(false);
+    setOpenSection(null);
   }, []);
   const handleSaveStyle = useCallback(
     (v: StyleImportValue) =>
@@ -413,7 +368,7 @@ export default function App() {
           className="hidden"
         />
 
-        <div ref={rowRef} className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1">
           <div className="min-h-0 min-w-0 flex-1">
             {view === "list" ? (
               <HistoryList
@@ -443,40 +398,6 @@ export default function App() {
             )}
           </div>
 
-          {editorOpen && (
-            <>
-              <div
-                onPointerDown={startResize}
-                className="w-1.5 shrink-0 cursor-col-resize bg-border transition-colors hover:bg-accent"
-              />
-              <div
-                style={{ width: editorWidth, boxShadow: "var(--shadow-pane)" }}
-                className="flex min-h-0 shrink-0 flex-col bg-surface animate-[slideInRight_200ms_cubic-bezier(0.16,1,0.3,1)]"
-              >
-                <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
-                  <span className="section-label">Code</span>
-                  <button
-                    onClick={() => setEditorOpen(false)}
-                    aria-label="Close editor"
-                    className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition-all duration-150 hover:bg-surface-2 hover:text-text btn-tactile"
-                  >
-                    <CloseIcon />
-                  </button>
-                </div>
-                <div className="min-h-0 flex-1">
-                  {focusedDesign ? (
-                    <CodeEditor value={editorValue} onChange={handleEditorChange} />
-                  ) : (
-                    <div className="flex h-full items-center justify-center px-4 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
-                      Scroll to a design to edit its code, or generate/import
-                      one.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
           {showSettings && (
             <div className="panel-enter flex shrink-0">
               <SettingsPanel
@@ -492,33 +413,92 @@ export default function App() {
             </div>
           )}
 
-          {stylesPaneOpen && (
-            <div className="panel-enter flex shrink-0">
-              <StylesPane
-                styles={allStyles}
-                selectedId={selectedPreset.id}
-                fontEmbedCSS={fontEmbedCSS}
-                config={config}
-                onSelect={handleSelectStyle}
-                onSaveStyle={handleSaveStyle}
-                onUpdateStyle={handleUpdateStyle}
-                onDeleteCustom={removeStyle}
-                onClose={closeStylesPane}
-              />
-            </div>
-          )}
-
-          {backgroundsPaneOpen && focusedDesign && (
-            <div className="panel-enter flex shrink-0">
-              <BackgroundsPane
-                html={focusedDesign.html}
-                onUpdateHtml={handleBackgroundUpdateHtml}
-                onClose={closeBackgroundsPane}
-                paused={bgPaused}
-                onTogglePause={toggleBgPause}
-              />
-            </div>
-          )}
+          <RightPane
+            expanded={paneExpanded}
+            openSection={openSection}
+            onToggleExpanded={() => setPaneExpanded((e) => !e)}
+            onOpenSection={setOpenSection}
+            sections={[
+              {
+                id: "html",
+                label: "Edit HTML",
+                icon: SectionIcons.html,
+                body: focusedDesign ? (
+                  <CodeEditor value={editorValue} onChange={handleEditorChange} />
+                ) : (
+                  <div className="flex h-full items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
+                    Scroll to a design to edit its code, or generate/import one.
+                  </div>
+                ),
+              },
+              {
+                id: "properties",
+                label: "Properties",
+                icon: SectionIcons.properties,
+                body: (
+                  <div className="px-4 py-5 text-sm text-text-faint">
+                    Properties (Task 6)
+                  </div>
+                ),
+              },
+              {
+                id: "styles",
+                label: "Styles",
+                icon: SectionIcons.styles,
+                body: (
+                  <StylesPane
+                    styles={allStyles}
+                    selectedId={selectedPreset.id}
+                    fontEmbedCSS={fontEmbedCSS}
+                    config={config}
+                    onSelect={handleSelectStyle}
+                    onSaveStyle={handleSaveStyle}
+                    onUpdateStyle={handleUpdateStyle}
+                    onDeleteCustom={removeStyle}
+                    onClose={closeStylesPane}
+                  />
+                ),
+              },
+              {
+                id: "assets",
+                label: "Assets",
+                icon: SectionIcons.assets,
+                body: (
+                  <div className="px-4 py-5 text-sm text-text-faint">
+                    Assets (Task 7)
+                  </div>
+                ),
+              },
+              {
+                id: "bg",
+                label: "BG",
+                icon: SectionIcons.bg,
+                body: focusedDesign ? (
+                  <BackgroundsPane
+                    html={focusedDesign.html}
+                    onUpdateHtml={handleBackgroundUpdateHtml}
+                    onClose={closeBackgroundsPane}
+                    paused={bgPaused}
+                    onTogglePause={toggleBgPause}
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
+                    Focus a design to browse backgrounds.
+                  </div>
+                ),
+              },
+              {
+                id: "info",
+                label: "Info",
+                icon: SectionIcons.info,
+                body: (
+                  <div className="px-4 py-5 text-sm text-text-faint">
+                    Info (Task 8)
+                  </div>
+                ),
+              },
+            ]}
+          />
         </div>
 
         <PromptBar
@@ -546,7 +526,6 @@ export default function App() {
           showCompare={canCompare}
           compareActive={compare}
           onToggleCompare={() => setCompare((c) => !c)}
-          onOpenEditor={openEditor}
           onEnhancePrompt={async () => {
             if (!userPrompt.trim() || !config.apiKey) return;
             setEnhancing(true);

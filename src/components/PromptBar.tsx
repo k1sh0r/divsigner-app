@@ -8,7 +8,6 @@ import {
 import { Dropdown, type DropdownItem } from "./ui/Dropdown";
 import {
   CloseIcon,
-  CodeIcon,
   CompareIcon,
   PlusIcon,
   SettingsIcon,
@@ -41,8 +40,6 @@ interface PromptBarProps {
   showCompare?: boolean;
   compareActive?: boolean;
   onToggleCompare?: () => void;
-  /** Interim code-editor trigger (moves to the right pane in a later task). */
-  onOpenEditor?: () => void;
   onEnhancePrompt?: () => Promise<void>;
   enhancing?: boolean;
   canEnhance?: boolean;
@@ -131,7 +128,6 @@ export function PromptBar({
   showCompare = false,
   compareActive = false,
   onToggleCompare,
-  onOpenEditor,
   onEnhancePrompt,
   enhancing,
   canEnhance,
@@ -302,13 +298,6 @@ export function PromptBar({
         >
           <span className="text-text-faint">Style</span> {selectedStyle.name}
         </button>
-
-        {onOpenEditor && (
-          <button type="button" onClick={onOpenEditor} className={ghostBtn} title="Edit the HTML manually">
-            <CodeIcon size={14} />
-            Code
-          </button>
-        )}
 
         {onBrowseBackgrounds && (
           <button
