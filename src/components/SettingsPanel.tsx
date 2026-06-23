@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { CloseIcon } from "./ui/icons";
-import type { ProviderId } from "../providers/types";
+import type { ProviderId, ProviderConfig } from "../providers/types";
 import { PROVIDERS } from "../providers/config";
 import type { ValidationResult } from "../providers/validation";
+import { useModelList } from "../hooks/useModelList";
 
 interface SettingsPanelProps {
   providerId: ProviderId;
@@ -38,8 +39,11 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<ValidationResult | null>(null);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [loadingModels, setLoadingModels] = useState(false);
+  const { models: availableModels, loading: loadingModels, supportsEndpoint } = useModelList({
+    providerId,
+    apiKey,
+    customBaseUrl,
+  } as ProviderConfig);
   const [manualModel, setManualModel] = useState(model);
   const [manualEnhanceModel, setManualEnhanceModel] = useState(enhanceModel || "");
 
@@ -48,44 +52,11 @@ export function SettingsPanel({
   useEffect(() => setManualModel(model), [model]);
   useEffect(() => setManualEnhanceModel(enhanceModel || ""), [enhanceModel]);
 
-  // Auto-fetch the model list when the panel opens with a saved key, so the
-  // dropdowns render immediately without requiring a Save click. Re-runs when
-  // the provider or custom base URL changes (different /models endpoint).
-  // Debounced so editing the key field doesn't fire a request per keystroke.
-  useEffect(() => {
-    if (!apiKey || !def.supportsModelsEndpoint) {
-      setAvailableModels([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setLoadingModels(true);
-      onValidate()
-        .then((res) => {
-          if (cancelled) return;
-          setResult(res);
-          if (res.models) setAvailableModels(res.models);
-        })
-        .catch(() => {
-          /* leave dropdowns as manual inputs */
-        })
-        .finally(() => {
-          if (!cancelled) setLoadingModels(false);
-        });
-    }, 600);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, providerId, customBaseUrl, def.supportsModelsEndpoint]);
-
   const handleSave = useCallback(async () => {
     onUpdate({ model: manualModel, enhanceModel: manualEnhanceModel });
     setSaving(true);
     const res = await onValidate();
     setResult(res);
-    if (res.models) setAvailableModels(res.models);
     setSaving(false);
   }, [manualModel, manualEnhanceModel, onUpdate, onValidate]);
 
@@ -116,7 +87,6 @@ export function SettingsPanel({
             onChange={(e) => {
               onUpdate({ providerId: e.target.value as ProviderId });
               setResult(null);
-              setAvailableModels([]);
             }}
             className={fieldClass}
           >
@@ -174,9 +144,8 @@ export function SettingsPanel({
         )}
 
         {/* Models are shown whenever we have a key + a /models endpoint,
-            not only after an explicit Save. This is the fix for "models only
-            display when I save the API every time". */}
-        {apiKey && def.supportsModelsEndpoint && (
+            not only after an explicit Save. */}
+        {apiKey && supportsEndpoint && (
           <>
             <div>
               <label className={labelClass}>
