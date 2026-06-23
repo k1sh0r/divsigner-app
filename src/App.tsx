@@ -5,6 +5,7 @@ import { TopNav } from "./components/TopNav";
 import { RightPane, SectionIcons, type Section } from "./components/RightPane";
 import { PropertiesPane } from "./components/panes/PropertiesPane";
 import { AssetsPane } from "./components/panes/AssetsPane";
+import { InfoPane } from "./components/panes/InfoPane";
 import { PosterCanvas, type FocusInfo } from "./components/PosterCanvas";
 import { HistoryList } from "./components/HistoryList";
 import { CodeEditor } from "./components/CodeEditor";
@@ -243,6 +244,17 @@ export default function App() {
   })();
   const focusedVariant = focusedJob?.variants[focusedJob.activeIndex] ?? null;
   const canCompare = focusedJob ? focusedJob.variants.length > 1 : false;
+
+  // Info pane: prompt/preferences + live model thinking/output for the
+  // focused job/variant. Updates live as tokens stream.
+  const info = focusedJob && focusedVariant ? {
+    prompt: focusedJob.prompt,
+    styleName: allStyles.find((s) => s.id === focusedJob.presetId)?.name ?? focusedJob.presetId,
+    aspectRatio: focusedJob.aspectRatio,
+    count: focusedJob.variants.length,
+    thinking: focusedVariant.thinking,
+    output: focusedVariant.rawHtml,
+  } : null;
 
   // Contextual primary button, driven by the focused slide:
   //   New slide            -> Generate
@@ -538,11 +550,7 @@ export default function App() {
                 id: "info",
                 label: "Info",
                 icon: SectionIcons.info,
-                body: (
-                  <div className="px-4 py-5 text-sm text-text-faint">
-                    Info (Task 8)
-                  </div>
-                ),
+                body: <InfoPane info={info} />,
               },
             ]}
           />
