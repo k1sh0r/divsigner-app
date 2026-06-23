@@ -15,6 +15,7 @@ import { parseBackgroundMeta } from "./backgrounds/parse";
 import { getBackground } from "./backgrounds/catalog";
 import type { StyleImportValue } from "./components/StyleImportForm";
 import { useProviderConfig } from "./hooks/useProviderConfig";
+import { useModelList } from "./hooks/useModelList";
 import { useGeneration } from "./hooks/useGeneration";
 import { useFontEmbedding } from "./hooks/useFontEmbedding";
 import { useHistory, type HistoryBatch, type HistoryItem } from "./hooks/useHistory";
@@ -30,6 +31,7 @@ import type { AspectRatioKey } from "./utils/constants";
 
 export default function App() {
   const { config, updateConfig, validate } = useProviderConfig();
+  const { models: modelOptions, loading: modelLoading } = useModelList(config);
   const {
     generate,
     retry,
@@ -577,10 +579,13 @@ export default function App() {
           onRemoveAsset={(id) =>
             setPendingAssets((a) => a.filter((x) => x.id !== id))
           }
-          onToggleSettings={toggleSettings}
           showCompare={canCompare}
           compareActive={compare}
           onToggleCompare={() => setCompare((c) => !c)}
+          model={config.model}
+          onModelChange={(m) => updateConfig({ model: m })}
+          modelOptions={modelOptions}
+          modelLoading={modelLoading}
           onEnhancePrompt={async () => {
             if (!userPrompt.trim() || !config.apiKey) return;
             setEnhancing(true);
