@@ -63,12 +63,12 @@ export function HistoryList({
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center animate-[fadeIn_400ms_ease]">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-dashed border-border bg-surface">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center" style={{ borderRadius: "var(--radius-pill)", border: "1px dashed var(--border-default)", background: "var(--glass-2)" }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-text-faint">
               <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <div className="font-display text-sm font-bold text-text-muted">
+          <div className="font-mono text-[13px] font-medium tracking-[var(--tracking-mono)] text-text-muted">
             No generations yet
           </div>
           <div className="mt-1 text-xs text-text-faint">
@@ -125,7 +125,7 @@ export function HistoryList({
                   </span>
                 </span>
                 {batch.items.length > 1 && (
-                  <span className="absolute -right-1.5 -top-1.5 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 font-mono text-[10px] font-bold text-white shadow-[0_0_6px_rgba(107,87,238,0.4)]">
+                  <span className="absolute -right-1.5 -top-1.5 z-10 flex h-5 min-w-5 items-center justify-center px-1 font-mono text-[10px] font-bold text-white" style={{ borderRadius: "var(--radius-pill)", background: "var(--grad-accent)", boxShadow: "var(--glow-soft)" }}>
                     {batch.items.length}
                   </span>
                 )}
@@ -166,7 +166,7 @@ export function HistoryList({
                   onClick={() => onDelete(batch.id)}
                   title="Delete generation"
                   aria-label="Delete generation"
-                  className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-text-faint transition-all duration-150 hover:border-danger/50 hover:text-danger btn-tactile"
+                  style={{ borderRadius: "var(--radius-sm)", boxShadow: "var(--emboss-neutral)" }} className="flex h-8 w-8 items-center justify-center text-text-faint transition-all duration-150 hover:text-danger btn-tactile"
                 >
                   <TrashIcon size={14} />
                 </button>

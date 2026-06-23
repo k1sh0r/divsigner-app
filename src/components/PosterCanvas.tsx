@@ -215,14 +215,20 @@ function VariantPills({
           <button
             key={i}
             onClick={() => onSelect(i)}
-            className={`flex h-9 min-w-9 items-center justify-center rounded-md border px-3 text-xs font-mono transition-all duration-150 btn-tactile ${
+            className={`flex h-9 min-w-9 items-center justify-center px-3 text-xs font-mono transition-all duration-150 btn-tactile ${
               i === selected
-                ? "border-accent bg-accent/15 text-text shadow-[0_0_10px_rgba(107,87,238,0.15)]"
-                : "border-border bg-surface-2 text-text-muted hover:border-border-strong hover:text-text"
+                ? "text-text"
+                : "text-text-muted hover:text-text"
             }`}
+            style={{
+              borderRadius: "var(--radius-sm)",
+              ...(i === selected
+                ? { background: "var(--accent-soft-rgba)", boxShadow: "inset 0 0 0 1px var(--border-accent), var(--glow-soft)" }
+                : { background: "var(--glass-2)", boxShadow: "var(--emboss-neutral)" }),
+            }}
           >
             {st === "streaming" ? (
-              <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
+              <span className="h-2 w-2 animate-pulse" style={{ borderRadius: "var(--radius-pill)", background: "var(--accent)" }} />
             ) : st === "error" ? (
               <span className="text-danger">!</span>
             ) : (

@@ -67,7 +67,7 @@ export function SettingsPanel({
     : "text-text-faint";
 
   return (
-    <aside style={{ boxShadow: "var(--shadow-pane)" }} className="scroll-thin w-[320px] shrink-0 h-full border-l border-border bg-surface overflow-y-auto">
+    <aside className="scroll-thin w-[320px] shrink-0 h-full overflow-y-auto" style={{ borderLeft: "1px solid var(--border-subtle)", background: "var(--glass-2)", backdropFilter: "var(--blur-md)", WebkitBackdropFilter: "var(--blur-md)", boxShadow: "var(--glass-edge), var(--glass-shadow)" }}>
       <div className="flex h-14 items-center justify-between border-b border-border px-6">
         <h2 className="font-display text-base font-bold text-text">Settings</h2>
         <button

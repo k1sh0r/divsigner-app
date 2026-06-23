@@ -432,25 +432,27 @@ function BackgroundsPaneImpl({
     title: string;
     onBack?: () => void;
   }) => (
-    <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+    <div className="flex h-14 shrink-0 items-center justify-between px-4" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
       <div className="flex min-w-0 items-center gap-2">
         {onBack && (
           <button
             onClick={onBack}
             aria-label="Back"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition-all duration-150 hover:bg-surface-2 hover:text-text btn-tactile"
+            className="flex h-7 w-7 items-center justify-center text-text-muted transition-all duration-150 hover:text-text btn-tactile"
+            style={{ borderRadius: "var(--radius-sm)" }}
           >
             <BackIcon />
           </button>
         )}
-        <h2 className="truncate font-display text-sm font-bold text-text">
+        <h2 className="truncate font-mono text-[13px] font-medium tracking-[var(--tracking-mono)] text-text">
           {title}
         </h2>
       </div>
       <button
         onClick={onClose}
         aria-label="Close"
-        className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition-all duration-150 hover:bg-surface-2 hover:text-text btn-tactile"
+        className="flex h-7 w-7 items-center justify-center text-text-muted transition-all duration-150 hover:text-text btn-tactile"
+        style={{ borderRadius: "var(--radius-sm)" }}
       >
         <CloseIcon />
       </button>
@@ -483,7 +485,8 @@ function BackgroundsPaneImpl({
         <button
           onClick={() => setView({ kind: "info", id: def.id })}
           aria-label={`${def.name} info`}
-          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md border border-border bg-surface text-text-muted transition-all duration-150 hover:border-accent hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile"
+          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center text-text-muted transition-all duration-150 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile"
+          style={{ borderRadius: "var(--radius-sm)", background: "var(--glass-2)", boxShadow: "var(--emboss-neutral)" }}
         >
           <InfoIcon size={14} />
         </button>
@@ -492,7 +495,7 @@ function BackgroundsPaneImpl({
   };
 
   return (
-    <aside className="flex w-[380px] shrink-0 flex-col border-l border-border bg-surface">
+    <aside className="flex w-full shrink-0 flex-col" style={{ background: "transparent" }}>
       {view.kind === "gallery" && (
         <>
           <Header title="Backgrounds" />
