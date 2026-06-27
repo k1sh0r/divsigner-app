@@ -5,14 +5,11 @@ import {
   HistoryIcon,
   ImportIcon,
   NewIcon,
-  SettingsIcon,
 } from "./ui/icons";
 
 interface TopNavProps {
   onNew: () => void;
   onImport: () => void;
-  onToggleSettings: () => void;
-  settingsActive: boolean;
   onHistory: () => void;
   historyActive: boolean;
   onExportPng: () => void;
@@ -57,8 +54,6 @@ function NavButton({
 export function TopNav({
   onNew,
   onImport,
-  onToggleSettings,
-  settingsActive,
   onHistory,
   historyActive,
   onExportPng,
@@ -83,7 +78,7 @@ export function TopNav({
 
   return (
     <header
-      className="flex shrink-0 items-center gap-3 px-4"
+      className="relative z-50 flex shrink-0 items-center gap-3 px-4"
       style={{
         height: "var(--nav-h)",
         background: "var(--glass-1)",
@@ -104,16 +99,10 @@ export function TopNav({
         </span>
       </div>
 
-      {/* Left cluster: New · Import · Settings */}
+      {/* Left cluster: New · Import */}
       <div className="ml-2 flex items-center gap-1">
         <NavButton onClick={onNew} icon={<NewIcon size={15} />} label="New" />
         <NavButton onClick={onImport} icon={<ImportIcon size={15} />} label="Import" />
-        <NavButton
-          onClick={onToggleSettings}
-          active={settingsActive}
-          icon={<SettingsIcon size={15} />}
-          label="Settings"
-        />
       </div>
 
       {error && (

@@ -1,4 +1,5 @@
 import { Select, Input } from "../ui/ds";
+import { PaneHeader } from "./PaneHeader";
 import { ASPECT_RATIOS, type AspectRatioKey } from "../../utils/constants";
 
 interface PropertiesPaneProps {
@@ -7,8 +8,9 @@ interface PropertiesPaneProps {
   aspectRatio: AspectRatioKey;
   onAspectChange: (r: AspectRatioKey) => void;
   /** null = no focused design (controls disabled). */
-  bg: { hex: string; opacity: number } | null;
+  bg: { hex: string; opacity: number; isLayer?: boolean } | null;
   onBgChange: (hex: string, opacity: number) => void;
+  onClose?: () => void;
 }
 
 const countOptions = [1, 2, 3, 4].map((n) => ({
@@ -31,13 +33,16 @@ export function PropertiesPane({
   onAspectChange,
   bg,
   onBgChange,
+  onClose,
 }: PropertiesPaneProps) {
   const disabled = bg === null;
   const hex = bg?.hex ?? "FFFFFF";
   const opacity = bg?.opacity ?? 100;
 
   return (
-    <div className="flex flex-col gap-5 px-4 py-5">
+    <div className="flex flex-col">
+      <PaneHeader title="Properties" onClose={onClose} />
+      <div className="flex flex-col gap-5 px-4 py-5">
       <div>
         <div className="eyebrow mb-2">Batch</div>
         <Select
@@ -91,17 +96,23 @@ export function PropertiesPane({
               aria-label="Hex color"
             />
           </div>
-          <div className="w-20">
-            <Input
-              value={`${opacity}%`}
-              disabled={disabled}
-              onChange={(e) => {
-                const v = Math.max(0, Math.min(100, Number(e.target.value.replace(/[^0-9]/g, "")) || 0));
-                onBgChange(hex, v);
-              }}
-              aria-label="Opacity"
-            />
-          </div>
+          {/* Opacity only applies to the poster body background (no layer).
+              When a background layer is applied the layer color is solid, so
+              the opacity field is hidden — the layer's opacity lives in the
+              Backgrounds pane. */}
+          {!bg?.isLayer && (
+            <div className="w-20">
+              <Input
+                value={`${opacity}%`}
+                disabled={disabled}
+                onChange={(e) => {
+                  const v = Math.max(0, Math.min(100, Number(e.target.value.replace(/[^0-9]/g, "")) || 0));
+                  onBgChange(hex, v);
+                }}
+                aria-label="Opacity"
+              />
+            </div>
+          )}
         </div>
         {disabled && (
           <div className="mt-2 text-xs text-text-faint">
@@ -109,6 +120,7 @@ export function PropertiesPane({
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

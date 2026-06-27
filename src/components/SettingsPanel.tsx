@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { CloseIcon } from "./ui/icons";
+import { PaneHeader } from "./panes/PaneHeader";
 import type { ProviderId, ProviderConfig } from "../providers/types";
 import { PROVIDERS } from "../providers/config";
 import type { ValidationResult } from "../providers/validation";
@@ -52,13 +52,17 @@ export function SettingsPanel({
   useEffect(() => setManualModel(model), [model]);
   useEffect(() => setManualEnhanceModel(enhanceModel || ""), [enhanceModel]);
 
-  const handleSave = useCallback(async () => {
-    onUpdate({ model: manualModel, enhanceModel: manualEnhanceModel });
+  const handleValidate = useCallback(async () => {
     setSaving(true);
     const res = await onValidate();
     setResult(res);
     setSaving(false);
-  }, [manualModel, manualEnhanceModel, onUpdate, onValidate]);
+  }, [onValidate]);
+
+  const handleSaveAndClose = useCallback(() => {
+    onUpdate({ model: manualModel, enhanceModel: manualEnhanceModel });
+    onClose();
+  }, [manualModel, manualEnhanceModel, onUpdate, onClose]);
 
   const statusColor = result
     ? result.valid
@@ -67,19 +71,10 @@ export function SettingsPanel({
     : "text-text-faint";
 
   return (
-    <aside className="scroll-thin w-[320px] shrink-0 h-full overflow-y-auto" style={{ borderLeft: "1px solid var(--border-subtle)", background: "var(--glass-2)", backdropFilter: "var(--blur-md)", WebkitBackdropFilter: "var(--blur-md)", boxShadow: "var(--glass-edge), var(--glass-shadow)" }}>
-      <div className="flex h-14 items-center justify-between border-b border-border px-6">
-        <h2 className="font-display text-base font-bold text-text">Settings</h2>
-        <button
-          onClick={onClose}
-          aria-label="Close settings"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition-all duration-150 hover:bg-surface-2 hover:text-text btn-tactile"
-        >
-          <CloseIcon size={18} />
-        </button>
-      </div>
+    <aside className="flex w-full h-full flex-col" style={{ background: "var(--glass-3)", backdropFilter: "var(--blur-lg)", WebkitBackdropFilter: "var(--blur-lg)" }}>
+      <PaneHeader title="Settings" onClose={onClose} />
 
-      <div className="px-6 pt-6 space-y-5">
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 pt-6 pb-6 space-y-5">
         <div>
           <label className={labelClass}>Provider</label>
           <select
@@ -124,14 +119,6 @@ export function SettingsPanel({
             className={`${fieldClass} font-mono`}
           />
         </div>
-
-        <button
-          onClick={handleSave}
-          disabled={!apiKey || saving}
-          className="rounded-md bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 text-sm font-bold text-white transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile"
-        >
-          {saving ? "Saving…" : "Save & validate"}
-        </button>
 
         {result && (
           <p className={`text-xs ${statusColor} break-words animate-[fadeIn_200ms_ease]`}>
@@ -211,6 +198,23 @@ export function SettingsPanel({
             </div>
           </>
         )}
+      </div>
+
+      <div className="flex shrink-0 gap-3 border-t border-border px-4 py-4">
+        <button
+          onClick={handleValidate}
+          disabled={!apiKey || saving}
+          className="rounded-md bg-surface-2 border border-border hover:bg-surface-3 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 text-sm font-bold text-text transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile"
+        >
+          {saving ? "Validating…" : "Validate"}
+        </button>
+        <button
+          onClick={handleSaveAndClose}
+          disabled={!apiKey}
+          className="flex-1 rounded-md bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 text-sm font-bold text-white transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile"
+        >
+          Save & close
+        </button>
       </div>
     </aside>
   );

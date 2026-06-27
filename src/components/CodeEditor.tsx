@@ -3,13 +3,19 @@ import CodeMirror from "@uiw/react-codemirror";
 import { html } from "@codemirror/lang-html";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
+import { PaneHeader } from "./panes/PaneHeader";
+import { usePaneChrome } from "./panes/PaneContext";
 
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
+  onClose?: () => void;
 }
 
-export function CodeEditor({ value, onChange }: CodeEditorProps) {
+export function CodeEditor({ value, onChange, onClose }: CodeEditorProps) {
+  // Docked in the accordion the column is auto-height, so `h-full` would
+  // collapse the editor to nothing — give it a bounded, scrollable height.
+  const { docked } = usePaneChrome();
   const extensions = useMemo(
     () => [
       html(),
@@ -28,7 +34,9 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
   );
 
   return (
-    <div className="h-full min-h-0">
+    <div className={`flex min-h-0 flex-col ${docked ? "h-[360px]" : "h-full"}`}>
+      <PaneHeader title="Edit HTML" onClose={onClose} />
+      <div className="min-h-0 flex-1">
       <CodeMirror
         value={value}
         onChange={onChange}
@@ -44,6 +52,7 @@ export function CodeEditor({ value, onChange }: CodeEditorProps) {
           autocompletion: true,
         }}
       />
+      </div>
     </div>
   );
 }

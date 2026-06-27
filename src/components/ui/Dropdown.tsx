@@ -59,8 +59,8 @@ export function Dropdown({
 
       {open && (
         <div
-          style={{ width, boxShadow: "var(--shadow-menu)" }}
-          className={`menu-enter absolute bottom-full mb-2 ${align === "right" ? "right-0" : "left-0"} z-30 rounded-md border border-border bg-surface-2 p-1`}
+          style={{ width, maxHeight: 280, boxShadow: "var(--shadow-menu)" }}
+          className={`menu-enter scroll-thin absolute bottom-full mb-2 ${align === "right" ? "right-0" : "left-0"} z-30 overflow-y-auto rounded-md border border-border bg-surface-2 p-1`}
         >
           {items.map((item) => {
             const selected = item.value === value;
@@ -81,8 +81,8 @@ export function Dropdown({
                 <span className="mt-0.5 flex w-3 shrink-0 justify-center text-accent">
                   {selected && <CheckIcon size={12} />}
                 </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">
                     {item.label}
                   </span>
                   {item.hint && (

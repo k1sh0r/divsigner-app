@@ -6,13 +6,15 @@ import { RightPane, SectionIcons, type Section } from "./components/RightPane";
 import { PropertiesPane } from "./components/panes/PropertiesPane";
 import { AssetsPane } from "./components/panes/AssetsPane";
 import { InfoPane } from "./components/panes/InfoPane";
-import { PosterCanvas, type FocusInfo } from "./components/PosterCanvas";
+import { PaneHeader } from "./components/panes/PaneHeader";
+import { PosterCanvas, type FocusInfo, type PosterCanvasHandle } from "./components/PosterCanvas";
 import { HistoryList } from "./components/HistoryList";
 import { CodeEditor } from "./components/CodeEditor";
 import { StylesPane } from "./components/StylesPane";
 import { BackgroundsPane } from "./components/BackgroundsPane";
-import { parseBackgroundMeta } from "./backgrounds/parse";
+import { parseBackgroundMeta, injectBackgroundMeta } from "./backgrounds/parse";
 import { getBackground } from "./backgrounds/catalog";
+import { DEFAULT_GLOBAL_PARAMS } from "./backgrounds/types";
 import type { StyleImportValue } from "./components/StyleImportForm";
 import { useProviderConfig } from "./hooks/useProviderConfig";
 import { useModelList } from "./hooks/useModelList";
@@ -28,6 +30,23 @@ import { readBgColor, writeBgColor } from "./utils/bgColor";
 import { STYLES } from "./styles/index";
 import type { Style } from "./styles/types";
 import type { AspectRatioKey } from "./utils/constants";
+
+function RedDot() {
+  return (
+    <span
+      style={{
+        position: "absolute",
+        top: 4,
+        right: 4,
+        width: 7,
+        height: 7,
+        borderRadius: "999px",
+        background: "var(--danger)",
+        boxShadow: "0 0 0 2px var(--glass-1), 0 0 6px rgba(242,62,99,0.7)",
+      }}
+    />
+  );
+}
 
 export default function App() {
   const { config, updateConfig, validate } = useProviderConfig();
@@ -69,11 +88,14 @@ export default function App() {
   const [count, setCount] = useState(1);
   const [pendingRefs, setPendingRefs] = useState<string[]>([]);
   const [pendingAssets, setPendingAssets] = useState<StoredAsset[]>([]);
-  const [showSettings, setShowSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [view, setView] = useState<"full" | "list">("full");
   const [compare, setCompare] = useState(false);
   const [focus, setFocus] = useState<FocusInfo>({ kind: "new" });
+
+  // Imperative handle into PosterCanvas — used by the nav "New" button to
+  // scroll the slide deck back to the "New design" slide.
+  const posterCanvasRef = useRef<PosterCanvasHandle>(null);
 
   // Right pane state machine (Photoshop-style collapsible inspector).
   const [paneExpanded, setPaneExpanded] = useState(false);
@@ -200,6 +222,10 @@ export default function App() {
   const handleNew = useCallback(() => {
     setFocus({ kind: "new" });
     setView("full");
+    // If the canvas is already mounted, scroll it to the New slide now.
+    // If we just switched out of the History list, PosterCanvas remounts and
+    // its own mount effect centers on the New slide, so the no-op is fine.
+    posterCanvasRef.current?.scrollToNew();
   }, []);
   const handleHistory = useCallback(
     () => setView((v) => (v === "list" ? "full" : "list")),
@@ -287,15 +313,41 @@ export default function App() {
   // scrolled to), so the code follows the canvas.
   const focusedDesign = focus.kind === "design" ? focus : null;
 
-  // Background color read from the focused poster's HTML (Properties pane).
-  const focusedBg = focusedDesign ? readBgColor(focusedDesign.html) : null;
+  // Background color for the Properties pane. When a background layer is
+  // applied the poster body is made transparent, so the visible bg color is
+  // the layer's `backgroundColor` — that's the single source of truth we
+  // surface here. Otherwise it's the poster body's own background.
+  const focusedBg = (() => {
+    if (!focusedDesign) return null;
+    const spec = parseBackgroundMeta(focusedDesign.html);
+    if (spec) {
+      const layerColor =
+        (spec.params.backgroundColor as string | undefined) ??
+        DEFAULT_GLOBAL_PARAMS.backgroundColor;
+      const hex = layerColor.replace(/^#/, "").toUpperCase();
+      return { hex, opacity: 100, isLayer: true };
+    }
+    return { ...readBgColor(focusedDesign.html), isLayer: false };
+  })();
   const handleBgChange = useCallback(
     (hex: string, opacity: number) => {
       if (focus.kind !== "design") return;
-      const newHtml = writeBgColor(focus.html, hex, opacity);
       const ref = focus.ref;
-      if (ref.kind === "job") setJobHtml(ref.jobId, newHtml);
-      else updateItem(ref.batchId, ref.index, newHtml);
+      const writeBack = (newHtml: string) => {
+        if (ref.kind === "job") setJobHtml(ref.jobId, newHtml);
+        else updateItem(ref.batchId, ref.index, newHtml);
+      };
+      const spec = parseBackgroundMeta(focus.html);
+      if (spec) {
+        // Layer applied: update the layer's backgroundColor in the meta.
+        const newSpec = {
+          ...spec,
+          params: { ...spec.params, backgroundColor: `#${hex}` },
+        };
+        writeBack(injectBackgroundMeta(focus.html, newSpec));
+      } else {
+        writeBack(writeBgColor(focus.html, hex, opacity));
+      }
     },
     [focus, setJobHtml, updateItem],
   );
@@ -341,9 +393,9 @@ export default function App() {
     [focus, setJobHtml, updateItem],
   );
 
-  const toggleSettings = () => setShowSettings((s) => !s);
   const openStylesPane = () => setOpenSection((s) => (s === "styles" ? null : "styles"));
   const openBackgroundsPane = () => setOpenSection((s) => (s === "bg" ? null : "bg"));
+  const closePane = useCallback(() => setOpenSection(null), []);
 
   // Stable handlers for the Backgrounds panel. Without these, the panel (and
   // its live WebGL preview) would re-render on every streamed token while a
@@ -397,8 +449,6 @@ export default function App() {
         <TopNav
           onNew={handleNew}
           onImport={() => htmlRef.current?.click()}
-          onToggleSettings={toggleSettings}
-          settingsActive={showSettings}
           onHistory={handleHistory}
           historyActive={view === "list"}
           onExportPng={handleExportPng}
@@ -435,13 +485,11 @@ export default function App() {
               />
             ) : (
               <PosterCanvas
+                ref={posterCanvasRef}
                 jobs={jobs}
                 batches={batches}
                 excludeBatchIds={excludeBatchIds}
                 newSlideAspect={aspectRatio}
-                exporting={exporting}
-                onExport={handleExport}
-                onDownload={handleDownload}
                 fontEmbedCSS={fontEmbedCSS}
                 assets={assetMap}
                 compare={compare}
@@ -451,21 +499,6 @@ export default function App() {
               />
             )}
           </div>
-
-          {showSettings && (
-            <div className="panel-enter flex shrink-0">
-              <SettingsPanel
-                providerId={config.providerId}
-                apiKey={config.apiKey}
-                model={config.model}
-                enhanceModel={config.enhanceModel}
-                customBaseUrl={config.customBaseUrl}
-                onUpdate={updateConfig}
-                onValidate={validate}
-                onClose={() => setShowSettings(false)}
-              />
-            </div>
-          )}
 
           <RightPane
             expanded={paneExpanded}
@@ -478,10 +511,13 @@ export default function App() {
                 label: "Edit HTML",
                 icon: SectionIcons.html,
                 body: focusedDesign ? (
-                  <CodeEditor value={editorValue} onChange={handleEditorChange} />
+                  <CodeEditor value={editorValue} onChange={handleEditorChange} onClose={closePane} />
                 ) : (
-                  <div className="flex h-full items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
-                    Scroll to a design to edit its code, or generate/import one.
+                  <div className="flex h-full flex-col">
+                    <PaneHeader title="Edit HTML" onClose={closePane} />
+                    <div className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
+                      Scroll to a design to edit its code, or generate/import one.
+                    </div>
                   </div>
                 ),
               },
@@ -497,6 +533,7 @@ export default function App() {
                     onAspectChange={setAspectRatio}
                     bg={focusedBg}
                     onBgChange={handleBgChange}
+                    onClose={closePane}
                   />
                 ),
               },
@@ -527,6 +564,7 @@ export default function App() {
                     assets={pendingAssets}
                     onAdd={() => assetRef.current?.click()}
                     onRemove={(id) => setPendingAssets((a) => a.filter((x) => x.id !== id))}
+                    onClose={closePane}
                   />
                 ),
               },
@@ -543,8 +581,11 @@ export default function App() {
                     onTogglePause={toggleBgPause}
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
-                    Focus a design to browse backgrounds.
+                  <div className="flex h-full flex-col">
+                    <PaneHeader title="Backgrounds" onClose={closePane} />
+                    <div className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
+                      Focus a design to browse backgrounds.
+                    </div>
                   </div>
                 ),
               },
@@ -552,7 +593,25 @@ export default function App() {
                 id: "info",
                 label: "Info",
                 icon: SectionIcons.info,
-                body: <InfoPane info={info} />,
+                body: <InfoPane info={info} onClose={closePane} />,
+              },
+              {
+                id: "settings",
+                label: "Settings",
+                icon: SectionIcons.settings,
+                badge: !config.apiKey ? <RedDot /> : null,
+                body: (
+                  <SettingsPanel
+                    providerId={config.providerId}
+                    apiKey={config.apiKey}
+                    model={config.model}
+                    enhanceModel={config.enhanceModel}
+                    customBaseUrl={config.customBaseUrl}
+                    onUpdate={updateConfig}
+                    onValidate={validate}
+                    onClose={closePane}
+                  />
+                ),
               },
             ]}
           />

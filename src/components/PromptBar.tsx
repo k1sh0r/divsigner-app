@@ -245,7 +245,7 @@ export function PromptBar({
 
   return (
     <div
-      className="px-5 pt-4 pb-4"
+      className="relative z-40 px-5 pt-4 pb-4"
       style={{
         borderTop: "1px solid var(--border-subtle)",
         background: "var(--glass-1)",
@@ -418,14 +418,15 @@ export function PromptBar({
           {modelOptions.length > 0 ? (
             <Dropdown
               label={
-                <span className="font-mono text-[12px] tracking-[var(--tracking-mono)] text-text-secondary">
+                <span className="block max-w-[160px] truncate font-mono text-[12px] tracking-[var(--tracking-mono)] text-text-secondary">
                   {modelLoading ? "Loading…" : model}
                 </span>
               }
               items={modelOptions.map((m) => ({ value: m, label: m }))}
               value={model}
               onSelect={(v) => onModelChange(v)}
-              width={220}
+              align="right"
+              width={240}
             />
           ) : (
             <input

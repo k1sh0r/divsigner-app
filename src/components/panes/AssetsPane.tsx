@@ -1,16 +1,20 @@
 import { IconButton } from "../ui/ds";
 import { PlusIcon, CloseIcon } from "../ui/icons";
+import { PaneHeader } from "./PaneHeader";
 import type { StoredAsset } from "../../hooks/useAssets";
 
 interface AssetsPaneProps {
   assets: StoredAsset[];
   onAdd: () => void;
   onRemove: (id: string) => void;
+  onClose?: () => void;
 }
 
-export function AssetsPane({ assets, onAdd, onRemove }: AssetsPaneProps) {
+export function AssetsPane({ assets, onAdd, onRemove, onClose }: AssetsPaneProps) {
   return (
-    <div className="flex flex-col gap-3 px-4 py-5">
+    <div className="flex flex-col">
+      <PaneHeader title="Assets" onClose={onClose} />
+      <div className="flex flex-col gap-3 px-4 py-5">
       <div className="eyebrow">Attached assets</div>
 
       {assets.length === 0 ? (
@@ -54,6 +58,7 @@ export function AssetsPane({ assets, onAdd, onRemove }: AssetsPaneProps) {
           <PlusIcon size={16} />
         </IconButton>
       </div>
+    </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { PreviewFrame } from "./PreviewFrame";
 import { PlusIcon } from "./ui/icons";
 import type { GenJob, Variant } from "../hooks/useGeneration";
@@ -54,9 +54,6 @@ interface PosterCanvasProps {
   excludeBatchIds: Set<string>;
   /** Aspect ratio used to size the "New design" slide. */
   newSlideAspect: AspectRatioKey;
-  exporting: boolean;
-  onExport: (html: string, ar: AspectRatioKey) => void;
-  onDownload: (html: string, ar: AspectRatioKey) => void;
   fontEmbedCSS: string;
   assets: AssetMap;
   compare: boolean;
@@ -99,9 +96,6 @@ function Poster({
   aspectRatio,
   fontEmbedCSS,
   assets,
-  onExport,
-  onDownload,
-  exporting,
   variant,
   bgPaused,
 }: {
@@ -109,9 +103,6 @@ function Poster({
   aspectRatio: AspectRatioKey;
   fontEmbedCSS: string;
   assets: AssetMap;
-  onExport: (html: string, ar: AspectRatioKey) => void;
-  onDownload: (html: string, ar: AspectRatioKey) => void;
-  exporting: boolean;
   variant?: Variant;
   bgPaused?: boolean;
 }) {
@@ -176,21 +167,6 @@ function Poster({
           </div>
         </div>
       )}
-      <div className="pointer-events-none absolute right-3 top-3 flex gap-2 opacity-0 translate-y-[-4px] transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">
-        <button
-          onClick={() => onExport(html, aspectRatio)}
-          disabled={exporting}
-          className="pointer-events-auto rounded-md bg-black/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur hover:bg-black transition-all duration-150 disabled:opacity-50 btn-tactile"
-        >
-          {exporting ? "Exporting…" : "Download PNG"}
-        </button>
-        <button
-          onClick={() => onDownload(html, aspectRatio)}
-          className="pointer-events-auto rounded-md bg-black/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur hover:bg-black transition-all duration-150 btn-tactile"
-        >
-          HTML
-        </button>
-      </div>
     </div>
   );
 }
@@ -243,32 +219,27 @@ function VariantPills({
 
 function Slide({
   children,
-  label,
 }: {
   children: React.ReactNode;
-  label?: string;
 }) {
   return (
     <section className="relative flex h-full shrink-0 snap-center flex-col">
-      {label && (
-        <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 max-w-[60%] truncate rounded-md border border-border bg-surface/80 px-3 py-1 text-[11px] text-text-muted backdrop-blur transition-opacity duration-200">
-          {label}
-        </div>
-      )}
       {children}
     </section>
   );
 }
 
-export function PosterCanvas(props: PosterCanvasProps) {
+export interface PosterCanvasHandle {
+  scrollToNew: () => void;
+}
+
+export const PosterCanvas = forwardRef<PosterCanvasHandle, PosterCanvasProps>(
+  function PosterCanvas(props, ref) {
   const {
     jobs,
     batches,
     excludeBatchIds,
     newSlideAspect,
-    exporting,
-    onExport,
-    onDownload,
     fontEmbedCSS,
     assets,
     compare,
@@ -292,6 +263,18 @@ export function PosterCanvas(props: PosterCanvasProps) {
   const H = historyBatches.length;
   const J = jobs.length;
   const newIdx = H + J;
+
+  // Imperative scroll-to-New for the nav "New" button.
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToNew: () => {
+        const el = scrollRef.current;
+        if (el) el.scrollTo({ top: newIdx * el.clientHeight, behavior: "smooth" });
+      },
+    }),
+    [newIdx],
+  );
 
   const reportFocus = (idx: number) => {
     if (idx === newIdx) {
@@ -397,16 +380,13 @@ export function PosterCanvas(props: PosterCanvasProps) {
           const sel = histSel[b.id] ?? 0;
           const item = b.items[sel]!;
           return (
-            <Slide key={b.id} label={b.prompt || "Untitled"}>
+            <Slide key={b.id}>
               <div className="flex min-h-0 flex-1 items-center justify-center p-6">
                 <Poster
                   html={item.html}
                   aspectRatio={b.aspectRatio}
                   fontEmbedCSS={fontEmbedCSS}
                   assets={assets}
-                  onExport={onExport}
-                  onDownload={onDownload}
-                  exporting={exporting}
                   bgPaused={bgPaused}
                 />
               </div>
@@ -434,7 +414,7 @@ export function PosterCanvas(props: PosterCanvasProps) {
           const v = job.variants[job.activeIndex]!;
           const showCompare = compare && job.variants.length > 1;
           return (
-            <Slide key={job.id} label={job.prompt || undefined}>
+            <Slide key={job.id}>
               <div className="flex min-h-0 flex-1 items-center justify-center p-6">
                 {v.status === "streaming" ? (
                   <StreamingView variant={v} />
@@ -487,9 +467,6 @@ export function PosterCanvas(props: PosterCanvasProps) {
                     aspectRatio={job.aspectRatio}
                     fontEmbedCSS={fontEmbedCSS}
                     assets={assets}
-                    onExport={onExport}
-                    onDownload={onDownload}
-                    exporting={exporting}
                     variant={v}
                     bgPaused={bgPaused}
                   />
@@ -537,9 +514,10 @@ export function PosterCanvas(props: PosterCanvasProps) {
         </Slide>
       </div>
 
-      {/* Dot rail + scroll hints */}
+      {/* Dot rail + scroll hints. Right margin clears the floating right-pane
+          rail (absolute, ~56px) so the dots aren't hidden underneath it. */}
       {slides > 1 && (
-        <div className="flex w-10 shrink-0 flex-col items-center justify-center gap-2">
+        <div className="mr-[64px] flex w-10 shrink-0 flex-col items-center justify-center gap-2">
           {Array.from({ length: slides }, (_, i) => {
             const isNew = i === newIdx;
             const isJob = i >= H && i < H + J;
@@ -583,4 +561,5 @@ export function PosterCanvas(props: PosterCanvasProps) {
       )}
     </div>
   );
-}
+  }
+);

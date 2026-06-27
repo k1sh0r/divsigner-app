@@ -3,6 +3,7 @@ import { PreviewFrame } from "./PreviewFrame";
 import { StyleSwatch } from "./StyleSwatch";
 import { StyleImportForm, type StyleImportValue } from "./StyleImportForm";
 import { BackIcon, CloseIcon, InfoIcon, PlusIcon } from "./ui/icons";
+import { usePaneChrome } from "./panes/PaneContext";
 import type { Style } from "../styles/types";
 import type { ProviderConfig } from "../providers/types";
 
@@ -55,34 +56,44 @@ function StylesPaneImpl({
   const customs = styles.filter((s) => s.source === "custom");
   const byId = (id: string) => styles.find((s) => s.id === id);
 
-  const Header = ({ title, onBack }: { title: string; onBack?: () => void }) => (
-    <div className="flex h-14 items-center justify-between px-4" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-      <div className="flex min-w-0 items-center gap-2">
-        {onBack && (
-          <button onClick={onBack} aria-label="Back"
-            className="flex h-7 w-7 items-center justify-center text-text-muted transition-all duration-150 hover:text-text btn-tactile"
-            style={{ borderRadius: "var(--radius-sm)" }}>
-            <BackIcon />
-          </button>
-        )}
-        <h2 className="truncate font-mono text-[13px] font-medium tracking-[var(--tracking-mono)] text-text">{title}</h2>
+  const Header = ({ title, onBack }: { title: string; onBack?: () => void }) => {
+    // Docked in the accordion: drop the title (the row already shows "Styles")
+    // and the close button (the +/− toggle closes it), but keep Import and the
+    // sub-view back arrow so the pane stays usable.
+    const { docked } = usePaneChrome();
+    return (
+      <div className="flex h-14 items-center justify-between px-4" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+        <div className="flex min-w-0 items-center gap-2">
+          {onBack && (
+            <button onClick={onBack} aria-label="Back"
+              className="flex h-7 w-7 items-center justify-center text-text-muted transition-all duration-150 hover:text-text btn-tactile"
+              style={{ borderRadius: "var(--radius-sm)" }}>
+              <BackIcon />
+            </button>
+          )}
+          {(!docked || onBack) && (
+            <h2 className="truncate font-mono text-[13px] font-medium tracking-[var(--tracking-mono)] text-text">{title}</h2>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {view.kind === "gallery" && (
+            <button onClick={() => setView({ kind: "info" })}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-text-muted transition-all duration-150 btn-tactile"
+              style={{ borderRadius: "var(--radius-sm)", boxShadow: "var(--emboss-neutral)" }}>
+              <PlusIcon size={13} /> Import
+            </button>
+          )}
+          {!docked && (
+            <button onClick={onClose} aria-label="Close"
+              className="flex h-7 w-7 items-center justify-center text-text-muted transition-all duration-150 hover:text-text btn-tactile"
+              style={{ borderRadius: "var(--radius-sm)" }}>
+              <CloseIcon />
+            </button>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-1.5">
-        {view.kind === "gallery" && (
-          <button onClick={() => setView({ kind: "info" })}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-text-muted transition-all duration-150 btn-tactile"
-            style={{ borderRadius: "var(--radius-sm)", boxShadow: "var(--emboss-neutral)" }}>
-            <PlusIcon size={13} /> Import
-          </button>
-        )}
-        <button onClick={onClose} aria-label="Close"
-          className="flex h-7 w-7 items-center justify-center text-text-muted transition-all duration-150 hover:text-text btn-tactile"
-          style={{ borderRadius: "var(--radius-sm)" }}>
-          <CloseIcon />
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // Clicking the row applies the style (and closes the pane); the (i) button
   // opens its info without applying.
