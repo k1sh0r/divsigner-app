@@ -90,7 +90,7 @@ export function TopNav({
     >
       {/* Brand mark + wordmark */}
       <div className="flex items-center gap-2.5">
-        <img src="/logo-mark.svg" alt="Divsigner" width={30} height={30} />
+        <img src="/divsigner-logo.png" alt="Divsigner" width={30} height={30} />
         <span
           className="font-display text-[15px] font-bold tracking-tight text-text"
           style={{ fontFamily: "var(--font-sans)" }}
