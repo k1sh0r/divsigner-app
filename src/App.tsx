@@ -3,6 +3,8 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { PromptBar, type PrimaryAction } from "./components/PromptBar";
 import { TopNav } from "./components/TopNav";
 import { RightPane, SectionIcons, type Section } from "./components/RightPane";
+import { MobileMenu, type MobileMenuAction } from "./components/MobileMenu";
+import { useIsMobile } from "./hooks/useIsMobile";
 import { PropertiesPane } from "./components/panes/PropertiesPane";
 import { AssetsPane } from "./components/panes/AssetsPane";
 import { InfoPane } from "./components/panes/InfoPane";
@@ -27,6 +29,12 @@ import { exportPng, downloadHtml } from "./export/poster";
 import { sanitizeHTML } from "./utils/sanitize";
 import { resolveAssets } from "./utils/assets";
 import { readBgColor, writeBgColor } from "./utils/bgColor";
+import {
+  DownloadIcon,
+  HistoryIcon,
+  ImportIcon,
+  NewIcon,
+} from "./components/ui/icons";
 import { STYLES } from "./styles/index";
 import type { Style } from "./styles/types";
 import type { AspectRatioKey } from "./utils/constants";
@@ -100,6 +108,11 @@ export default function App() {
   // Right pane state machine (Photoshop-style collapsible inspector).
   const [paneExpanded, setPaneExpanded] = useState(false);
   const [openSection, setOpenSection] = useState<Section | null>(null);
+
+  // Mobile responsive: a bottom-drawer menu hosts the nav + right-pane
+  // sections instead of the desktop top-nav clusters and floating rail.
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Hidden HTML file input — Import lives in the nav now (lifted out of
   // PromptBar so the tree stays green between commits).
@@ -393,8 +406,16 @@ export default function App() {
     [focus, setJobHtml, updateItem],
   );
 
-  const openStylesPane = () => setOpenSection((s) => (s === "styles" ? null : "styles"));
-  const openBackgroundsPane = () => setOpenSection((s) => (s === "bg" ? null : "bg"));
+  const openStylesPane = () => {
+    const next = openSection === "styles" ? null : "styles";
+    setOpenSection(next);
+    if (next && isMobile) setMobileMenuOpen(true);
+  };
+  const openBackgroundsPane = () => {
+    const next = openSection === "bg" ? null : "bg";
+    setOpenSection(next);
+    if (next && isMobile) setMobileMenuOpen(true);
+  };
   const closePane = useCallback(() => setOpenSection(null), []);
 
   // Stable handlers for the Backgrounds panel. Without these, the panel (and

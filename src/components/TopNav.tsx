@@ -4,6 +4,7 @@ import {
   DownloadIcon,
   HistoryIcon,
   ImportIcon,
+  MenuIcon,
   NewIcon,
 } from "./ui/icons";
 
@@ -17,6 +18,8 @@ interface TopNavProps {
   canExport: boolean;
   exporting?: boolean;
   error?: string | null;
+  /** Mobile: opens the menu bottom drawer (nav + right-pane sections). */
+  onOpenMenu?: () => void;
 }
 
 function NavButton({
@@ -61,6 +64,7 @@ export function TopNav({
   canExport,
   exporting = false,
   error = null,
+  onOpenMenu,
 }: TopNavProps) {
   const [exportOpen, setExportOpen] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -99,8 +103,8 @@ export function TopNav({
         </span>
       </div>
 
-      {/* Left cluster: New · Import */}
-      <div className="ml-2 flex items-center gap-1">
+      {/* Left cluster: New · Import (desktop only) */}
+      <div className="ml-2 hidden items-center gap-1 md:flex">
         <NavButton onClick={onNew} icon={<NewIcon size={15} />} label="New" />
         <NavButton onClick={onImport} icon={<ImportIcon size={15} />} label="Import" />
       </div>
@@ -123,14 +127,15 @@ export function TopNav({
         </div>
       )}
 
-      {/* Right cluster: History · Export */}
+      {/* Right cluster: History · Export (desktop) · Menu (mobile) */}
       <div className="ml-auto flex items-center gap-2">
-        <NavButton
-          onClick={onHistory}
-          active={historyActive}
-          icon={<HistoryIcon size={15} />}
-          label="History"
-        />
+        <div className="hidden items-center gap-2 md:flex">
+          <NavButton
+            onClick={onHistory}
+            active={historyActive}
+            icon={<HistoryIcon size={15} />}
+            label="History"
+          />
 
         <div className="relative" ref={exportRef}>
           <button
@@ -196,6 +201,27 @@ export function TopNav({
             </div>
           )}
         </div>
+        </div>
+
+        {/* Mobile menu button (opens the nav + sections bottom drawer) */}
+        {onOpenMenu && (
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            className="flex md:hidden items-center justify-center transition-all duration-150 btn-tactile"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "var(--radius-sm)",
+              background: "var(--glass-2)",
+              boxShadow: "var(--emboss-neutral)",
+              color: "var(--text-secondary)",
+            }}
+            aria-label="Open menu"
+          >
+            <MenuIcon size={18} />
+          </button>
+        )}
       </div>
     </header>
   );

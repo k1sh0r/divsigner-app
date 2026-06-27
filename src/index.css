@@ -488,3 +488,81 @@ body {
 .dot-active {
   animation: dotPulse 2s var(--ease-spring) infinite;
 }
+
+/* ---- Mobile / responsive chrome ----
+   Everything below is scoped to <=768px. The desktop layout (floating
+   right pane rail, full prompt-bar chips, wordmark + nav cluster) is hidden
+   on mobile and replaced with a compact header (menu button) and a bottom
+   drawer system. */
+
+@keyframes ds-drawer-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes ds-drawer-down {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+
+@keyframes ds-drawer-panel-in {
+  from { transform: translateX(40%); opacity: 0.2; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes ds-scrim-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes ds-grab-flash {
+  0%   { transform: translateX(0); }
+  25%  { transform: translateX(6px); }
+  55%  { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+
+.ds-scrim {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(5, 4, 9, 0.55);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  animation: ds-scrim-in var(--duration-base) var(--ease-out-expo) both;
+}
+
+.ds-drawer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 95;
+  display: flex; flex-direction: column;
+  max-height: 88vh; min-height: 220px;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  background: var(--glass-3);
+  backdrop-filter: var(--blur-lg); -webkit-backdrop-filter: var(--blur-lg);
+  box-shadow: var(--glass-edge), var(--shadow-lg);
+  border-top: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  animation: ds-drawer-up var(--duration-slow) var(--ease-out-expo) both;
+  overscroll-behavior: contain;
+}
+.ds-drawer--closing { animation: ds-drawer-down var(--duration-base) var(--ease-out-expo) both; }
+
+/* Subtle "swipe into view" gesture when a sub-panel pushes in. Applied to
+   the entering panel for ~300ms; harmless on reduced-motion. */
+.ds-panel-swipe-in { animation: ds-drawer-panel-in 300ms var(--ease-out-expo) both; }
+.ds-grab-indicator { animation: ds-grab-flash 600ms var(--ease-out-expo); }
+
+.ds-drawer__handle {
+  flex: none; align-self: center;
+  width: 40px; height: 4px; margin: 10px 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+.ds-drawer__head {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3); padding: 6px 16px 12px;
+}
+.ds-drawer__title {
+  font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-mono); color: var(--text-primary);
+}
+.ds-drawer__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.ds-drawer__pad { padding: 0 16px 20px; }

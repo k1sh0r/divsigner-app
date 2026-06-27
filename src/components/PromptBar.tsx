@@ -7,11 +7,14 @@ import {
   type ReactNode,
 } from "react";
 import { Dropdown, type DropdownItem } from "./ui/Dropdown";
-import { Button } from "./ui/ds";
+import { Button, Select, Input } from "./ui/ds";
+import { BottomDrawer } from "./ui/BottomDrawer";
 import {
+  ChevronRightIcon,
   CloseIcon,
   CompareIcon,
   PlusIcon,
+  SlidersIcon,
   SparkleIcon,
   WandIcon,
 } from "./ui/icons";
@@ -200,6 +203,9 @@ export function PromptBar({
   const attachKind = useRef<"reference" | "asset">("reference");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  // Mobile-only options drawer (ratio, batch, style, BG, model, enhance).
+  const [configOpen, setConfigOpen] = useState(false);
+  const closeConfig = () => setConfigOpen(false);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -374,81 +380,180 @@ export function PromptBar({
           )}
         </div>
 
-        {/* Chips: ratio · batch · style · background */}
-        <Dropdown
-          label={<ChipLabel label="Ratio" value={aspectRatio} />}
-          items={aspectItems}
-          value={aspectRatio}
-          onSelect={(v) => onAspectChange(v as AspectRatioKey)}
-          width={200}
-        />
-        <Dropdown
-          label={<ChipLabel label="Batch" value={count} />}
-          items={countItems}
-          value={String(count)}
-          onSelect={(v) => onCountChange(Number(v))}
-          width={140}
-        />
-        <ChipButton label="Style" value={selectedStyle.name} onClick={onBrowseStyles} />
-        {onBrowseBackgrounds && (
-          <ChipButton
-            label="BG"
-            value={selectedBackground?.name ?? "None"}
-            onClick={onBrowseBackgrounds}
+        {/* Chips: ratio · batch · style · background (desktop only) */}
+        <div className="hidden md:flex items-center gap-2">
+          <Dropdown
+            label={<ChipLabel label="Ratio" value={aspectRatio} />}
+            items={aspectItems}
+            value={aspectRatio}
+            onSelect={(v) => onAspectChange(v as AspectRatioKey)}
+            width={200}
           />
-        )}
+          <Dropdown
+            label={<ChipLabel label="Batch" value={count} />}
+            items={countItems}
+            value={String(count)}
+            onSelect={(v) => onCountChange(Number(v))}
+            width={140}
+          />
+          <ChipButton label="Style" value={selectedStyle.name} onClick={onBrowseStyles} />
+          {onBrowseBackgrounds && (
+            <ChipButton
+              label="BG"
+              value={selectedBackground?.name ?? "None"}
+              onClick={onBrowseBackgrounds}
+            />
+          )}
+        </div>
 
-        {/* Bottom-right cluster: Enhance · Model · Generate */}
+        {/* Mobile-only: config button opens the options bottom drawer. */}
+        <button
+          type="button"
+          onClick={() => setConfigOpen(true)}
+          className="flex md:hidden items-center justify-center h-9 w-9 transition-all duration-150 btn-tactile"
+          style={{
+            borderRadius: "var(--radius-sm)",
+            background: "var(--glass-2)",
+            boxShadow: "var(--emboss-neutral)",
+            color: "var(--text-secondary)",
+          }}
+          title="Options"
+          aria-label="Options"
+        >
+          <SlidersIcon size={16} />
+        </button>
+
+        {/* Bottom-right cluster: Enhance · Model (desktop) · Generate (always) */}
         <div className="ml-auto flex items-center gap-2">
-          {onEnhancePrompt && (
-            <Button
-              variant="ghost"
-              size="sm"
-              iconLeft={<WandIcon size={14} />}
-              onClick={onEnhancePrompt}
-              disabled={!canEnhance || enhancing}
-              title="Enhance prompt with marketing copywriting"
-            >
-              {enhancing ? "Enhancing…" : "Enhance"}
-            </Button>
-          )}
+          <div className="hidden md:flex items-center gap-2">
+            {onEnhancePrompt && (
+              <Button
+                variant="ghost"
+                size="sm"
+                iconLeft={<WandIcon size={14} />}
+                onClick={onEnhancePrompt}
+                disabled={!canEnhance || enhancing}
+                title="Enhance prompt with marketing copywriting"
+              >
+                {enhancing ? "Enhancing…" : "Enhance"}
+              </Button>
+            )}
 
-          {/* Model dropdown — switches config.model. Manual entry fallback
-              for providers with no /models endpoint. */}
-          {modelOptions.length > 0 ? (
-            <Dropdown
-              label={
-                <span className="block max-w-[160px] truncate font-mono text-[12px] tracking-[var(--tracking-mono)] text-text-secondary">
-                  {modelLoading ? "Loading…" : model}
-                </span>
-              }
-              items={modelOptions.map((m) => ({ value: m, label: m }))}
-              value={model}
-              onSelect={(v) => onModelChange(v)}
-              align="right"
-              width={240}
-            />
-          ) : (
-            <input
-              type="text"
-              value={model}
-              onChange={(e) => onModelChange(e.target.value)}
-              placeholder="model-name"
-              className="font-mono text-[12px] tracking-[var(--tracking-mono)] text-text-secondary h-7 px-3 focus:outline-none"
-              style={{
-                width: 180,
-                borderRadius: "var(--radius-sm)",
-                background: "rgba(7,6,12,0.6)",
-                boxShadow: "inset 0 0 0 1px var(--border-default)",
-                color: "var(--text-primary)",
-              }}
-              title="Model"
-            />
-          )}
+            {/* Model dropdown — switches config.model. Manual entry fallback
+                for providers with no /models endpoint. */}
+            {modelOptions.length > 0 ? (
+              <Dropdown
+                label={
+                  <span className="block max-w-[160px] truncate font-mono text-[12px] tracking-[var(--tracking-mono)] text-text-secondary">
+                    {modelLoading ? "Loading…" : model}
+                  </span>
+                }
+                items={modelOptions.map((m) => ({ value: m, label: m }))}
+                value={model}
+                onSelect={(v) => onModelChange(v)}
+                align="right"
+                width={240}
+              />
+            ) : (
+              <input
+                type="text"
+                value={model}
+                onChange={(e) => onModelChange(e.target.value)}
+                placeholder="model-name"
+                className="font-mono text-[12px] tracking-[var(--tracking-mono)] text-text-secondary h-7 px-3 focus:outline-none"
+                style={{
+                  width: 180,
+                  borderRadius: "var(--radius-sm)",
+                  background: "rgba(7,6,12,0.6)",
+                  boxShadow: "inset 0 0 0 1px var(--border-default)",
+                  color: "var(--text-primary)",
+                }}
+                title="Model"
+              />
+            )}
+          </div>
 
           <PrimaryButton action={primaryAction} onClick={onPrimaryAction} />
         </div>
       </div>
+
+      {/* Mobile-only options drawer: holds everything that doesn't fit in the
+          compact prompt bar (ratio, batch, style, BG, model, enhance). */}
+      <BottomDrawer open={configOpen} title="Options" onClose={closeConfig}>
+        <div className="flex flex-col gap-5">
+          <ConfigRow label="Ratio">
+            <Segmented
+              value={aspectRatio}
+              options={(Object.keys(ASPECT_RATIOS) as AspectRatioKey[]).map((k) => ({
+                value: k,
+                label: k,
+              }))}
+              onSelect={(v) => onAspectChange(v as AspectRatioKey)}
+            />
+          </ConfigRow>
+
+          <ConfigRow label="Batch">
+            <Segmented
+              value={String(count)}
+              options={[1, 2, 3, 4].map((n) => ({
+                value: String(n),
+                label: String(n),
+              }))}
+              onSelect={(v) => onCountChange(Number(v))}
+            />
+          </ConfigRow>
+
+          <BrowseRow
+            label="Style"
+            value={selectedStyle.name}
+            onClick={() => {
+              closeConfig();
+              onBrowseStyles();
+            }}
+          />
+          {onBrowseBackgrounds && (
+            <BrowseRow
+              label="Background"
+              value={selectedBackground?.name ?? "None"}
+              onClick={() => {
+                closeConfig();
+                onBrowseBackgrounds();
+              }}
+            />
+          )}
+
+          <ConfigRow label="Model">
+            {modelOptions.length > 0 ? (
+              <Select
+                options={modelOptions.map((m) => ({ value: m, label: m }))}
+                value={model}
+                onChange={(e) => onModelChange(e.target.value)}
+              />
+            ) : (
+              <Input
+                value={model}
+                onChange={(e) => onModelChange(e.target.value)}
+                placeholder="model-name"
+                className="font-mono"
+              />
+            )}
+          </ConfigRow>
+
+          {onEnhancePrompt && (
+            <Button
+              variant="secondary"
+              iconLeft={<WandIcon size={15} />}
+              onClick={() => {
+                onEnhancePrompt();
+              }}
+              disabled={!canEnhance || enhancing}
+              fullWidth
+            >
+              {enhancing ? "Enhancing…" : "Enhance prompt"}
+            </Button>
+          )}
+        </div>
+      </BottomDrawer>
     </div>
   );
 }
@@ -502,5 +607,86 @@ function StopDot() {
       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white/70" />
       <span className="relative inline-flex h-2 w-2 rounded-sm bg-white" />
     </span>
+  );
+}
+
+/** A labeled row inside the mobile options drawer (label above, control below). */
+function ConfigRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="eyebrow">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+/** A segmented selector (one option highlighted at a time). */
+function Segmented({
+  value,
+  options,
+  onSelect,
+}: {
+  value: string;
+  options: { value: string; label: ReactNode }[];
+  onSelect: (v: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1 p-1" style={{ borderRadius: "var(--radius-md)", background: "var(--glass-2)", boxShadow: "inset 0 0 0 1px var(--border-default)" }}>
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onSelect(o.value)}
+            className="flex h-9 flex-1 items-center justify-center font-mono text-[13px] font-medium tracking-[var(--tracking-mono)] transition-all duration-150 btn-tactile"
+            style={{
+              borderRadius: "var(--radius-sm)",
+              color: active ? "var(--text-primary)" : "var(--text-muted)",
+              background: active ? "var(--accent-soft-rgba)" : "transparent",
+              boxShadow: active ? "inset 0 0 0 1px var(--border-accent)" : "none",
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A tappable row that opens a deeper picker (style / background). */
+function BrowseRow({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center justify-between px-3 py-3 text-left transition-all duration-150 btn-tactile"
+      style={{
+        borderRadius: "var(--radius-md)",
+        background: "var(--glass-2)",
+        boxShadow: "var(--emboss-neutral)",
+      }}
+    >
+      <span className="flex flex-col">
+        <span className="eyebrow">{label}</span>
+        <span className="mt-0.5 text-[15px] font-medium text-text">{value}</span>
+      </span>
+      <ChevronRightIcon size={18} className="text-text-faint" />
+    </button>
   );
 }
