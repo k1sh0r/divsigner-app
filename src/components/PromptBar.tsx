@@ -479,7 +479,22 @@ export function PromptBar({
 
       {/* Mobile-only options drawer: holds everything that doesn't fit in the
           compact prompt bar (ratio, batch, style, BG, model, enhance). */}
-      <BottomDrawer open={configOpen} title="Options" onClose={closeConfig}>
+      <BottomDrawer
+        open={configOpen}
+        title="Options"
+        onClose={closeConfig}
+        action={
+          <button
+            type="button"
+            onClick={closeConfig}
+            aria-label="Close options"
+            className="flex items-center justify-center text-text-muted transition-all duration-150 btn-tactile hover:text-text"
+            style={{ width: 32, height: 32, borderRadius: "var(--radius-sm)" }}
+          >
+            <CloseIcon size={18} />
+          </button>
+        }
+      >
         <div className="flex flex-col gap-5">
           <ConfigRow label="Ratio">
             <Segmented

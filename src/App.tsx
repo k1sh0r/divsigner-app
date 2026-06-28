@@ -464,6 +464,144 @@ export default function App() {
     [updateStyle],
   );
 
+  const sections = [
+    {
+      id: "html" as const,
+      label: "Edit HTML",
+      icon: SectionIcons.html,
+      body: focusedDesign ? (
+        <CodeEditor value={editorValue} onChange={handleEditorChange} onClose={closePane} />
+      ) : (
+        <div className="flex h-full flex-col">
+          <PaneHeader title="Edit HTML" onClose={closePane} />
+          <div className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
+            Scroll to a design to edit its code, or generate/import one.
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "properties" as const,
+      label: "Properties",
+      icon: SectionIcons.properties,
+      body: (
+        <PropertiesPane
+          count={count}
+          onCountChange={setCount}
+          aspectRatio={aspectRatio}
+          onAspectChange={setAspectRatio}
+          bg={focusedBg}
+          onBgChange={handleBgChange}
+          onClose={closePane}
+        />
+      ),
+    },
+    {
+      id: "styles" as const,
+      label: "Styles",
+      icon: SectionIcons.styles,
+      body: (
+        <StylesPane
+          styles={allStyles}
+          selectedId={selectedPreset.id}
+          fontEmbedCSS={fontEmbedCSS}
+          config={config}
+          onSelect={handleSelectStyle}
+          onSaveStyle={handleSaveStyle}
+          onUpdateStyle={handleUpdateStyle}
+          onDeleteCustom={removeStyle}
+          onClose={closeStylesPane}
+        />
+      ),
+    },
+    {
+      id: "assets" as const,
+      label: "Assets",
+      icon: SectionIcons.assets,
+      body: (
+        <AssetsPane
+          assets={pendingAssets}
+          onAdd={() => assetRef.current?.click()}
+          onRemove={(id) => setPendingAssets((a) => a.filter((x) => x.id !== id))}
+          onClose={closePane}
+        />
+      ),
+    },
+    {
+      id: "bg" as const,
+      label: "BG",
+      icon: SectionIcons.bg,
+      body: focusedDesign ? (
+        <BackgroundsPane
+          html={focusedDesign.html}
+          onUpdateHtml={handleBackgroundUpdateHtml}
+          onClose={closeBackgroundsPane}
+          paused={bgPaused}
+          onTogglePause={toggleBgPause}
+        />
+      ) : (
+        <div className="flex h-full flex-col">
+          <PaneHeader title="Backgrounds" onClose={closePane} />
+          <div className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
+            Focus a design to browse backgrounds.
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "info" as const,
+      label: "Info",
+      icon: SectionIcons.info,
+      body: <InfoPane info={info} onClose={closePane} />,
+    },
+    {
+      id: "settings" as const,
+      label: "Settings",
+      icon: SectionIcons.settings,
+      badge: !config.apiKey ? <RedDot /> : null,
+      body: (
+        <SettingsPanel
+          providerId={config.providerId}
+          apiKey={config.apiKey}
+          model={config.model}
+          enhanceModel={config.enhanceModel}
+          customBaseUrl={config.customBaseUrl}
+          onUpdate={updateConfig}
+          onValidate={validate}
+          onClose={closePane}
+        />
+      ),
+    },
+  ];
+
+  // Mobile menu: nav actions first, then the right-pane sections. Selecting a
+  // section opens its panel inside the same bottom drawer.
+  const mobileActions: MobileMenuAction[] = [
+    { id: "new", label: "New", hint: "Start a blank design", icon: <NewIcon size={18} />, onSelect: handleNew },
+    { id: "import", label: "Import", hint: "Load an HTML file", icon: <ImportIcon size={18} />, onSelect: () => htmlRef.current?.click() },
+    {
+      id: "history",
+      label: "History",
+      hint: view === "list" ? "Showing history" : "Browse past designs",
+      icon: <HistoryIcon size={18} />,
+      onSelect: handleHistory,
+    },
+    {
+      id: "export",
+      label: "Export",
+      hint: focusedDesign ? "PNG / HTML" : "Focus a design first",
+      icon: <DownloadIcon size={18} />,
+      onSelect: () => focusedDesign && handleExportPng(),
+    },
+    ...sections.map((s) => ({
+      id: s.id,
+      label: s.label,
+      icon: s.icon,
+      badge: s.badge,
+      panel: s.body,
+    })),
+  ];
+
   return (
     <div className="ds-canvas flex h-screen overflow-hidden text-text">
       <main className="flex min-w-0 flex-1 flex-col">
@@ -477,6 +615,7 @@ export default function App() {
           canExport={Boolean(focusedDesign)}
           exporting={exporting}
           error={error}
+          onOpenMenu={() => setMobileMenuOpen(true)}
         />
         <input
           ref={htmlRef}
@@ -521,121 +660,26 @@ export default function App() {
             )}
           </div>
 
-          <RightPane
-            expanded={paneExpanded}
-            openSection={openSection}
-            onToggleExpanded={() => setPaneExpanded((e) => !e)}
-            onOpenSection={setOpenSection}
-            sections={[
-              {
-                id: "html",
-                label: "Edit HTML",
-                icon: SectionIcons.html,
-                body: focusedDesign ? (
-                  <CodeEditor value={editorValue} onChange={handleEditorChange} onClose={closePane} />
-                ) : (
-                  <div className="flex h-full flex-col">
-                    <PaneHeader title="Edit HTML" onClose={closePane} />
-                    <div className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
-                      Scroll to a design to edit its code, or generate/import one.
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                id: "properties",
-                label: "Properties",
-                icon: SectionIcons.properties,
-                body: (
-                  <PropertiesPane
-                    count={count}
-                    onCountChange={setCount}
-                    aspectRatio={aspectRatio}
-                    onAspectChange={setAspectRatio}
-                    bg={focusedBg}
-                    onBgChange={handleBgChange}
-                    onClose={closePane}
-                  />
-                ),
-              },
-              {
-                id: "styles",
-                label: "Styles",
-                icon: SectionIcons.styles,
-                body: (
-                  <StylesPane
-                    styles={allStyles}
-                    selectedId={selectedPreset.id}
-                    fontEmbedCSS={fontEmbedCSS}
-                    config={config}
-                    onSelect={handleSelectStyle}
-                    onSaveStyle={handleSaveStyle}
-                    onUpdateStyle={handleUpdateStyle}
-                    onDeleteCustom={removeStyle}
-                    onClose={closeStylesPane}
-                  />
-                ),
-              },
-              {
-                id: "assets",
-                label: "Assets",
-                icon: SectionIcons.assets,
-                body: (
-                  <AssetsPane
-                    assets={pendingAssets}
-                    onAdd={() => assetRef.current?.click()}
-                    onRemove={(id) => setPendingAssets((a) => a.filter((x) => x.id !== id))}
-                    onClose={closePane}
-                  />
-                ),
-              },
-              {
-                id: "bg",
-                label: "BG",
-                icon: SectionIcons.bg,
-                body: focusedDesign ? (
-                  <BackgroundsPane
-                    html={focusedDesign.html}
-                    onUpdateHtml={handleBackgroundUpdateHtml}
-                    onClose={closeBackgroundsPane}
-                    paused={bgPaused}
-                    onTogglePause={toggleBgPause}
-                  />
-                ) : (
-                  <div className="flex h-full flex-col">
-                    <PaneHeader title="Backgrounds" onClose={closePane} />
-                    <div className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
-                      Focus a design to browse backgrounds.
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                id: "info",
-                label: "Info",
-                icon: SectionIcons.info,
-                body: <InfoPane info={info} onClose={closePane} />,
-              },
-              {
-                id: "settings",
-                label: "Settings",
-                icon: SectionIcons.settings,
-                badge: !config.apiKey ? <RedDot /> : null,
-                body: (
-                  <SettingsPanel
-                    providerId={config.providerId}
-                    apiKey={config.apiKey}
-                    model={config.model}
-                    enhanceModel={config.enhanceModel}
-                    customBaseUrl={config.customBaseUrl}
-                    onUpdate={updateConfig}
-                    onValidate={validate}
-                    onClose={closePane}
-                  />
-                ),
-              },
-            ]}
-          />
+          {!isMobile && (
+            <RightPane
+              expanded={paneExpanded}
+              openSection={openSection}
+              onToggleExpanded={() => setPaneExpanded((e) => !e)}
+              onOpenSection={setOpenSection}
+              sections={sections}
+            />
+          )}
+
+          {isMobile && (
+            <MobileMenu
+              open={mobileMenuOpen}
+              onClose={() => setMobileMenuOpen(false)}
+              title="Menu"
+              actions={mobileActions}
+              activeId={openSection}
+              onOpenSection={(id) => setOpenSection(id as Section | null)}
+            />
+          )}
         </div>
 
         <PromptBar

@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 
 interface BottomDrawerProps {
   open: boolean;
@@ -80,7 +81,12 @@ export function BottomDrawer({
 
   if (!render) return null;
 
-  return (
+  // Portal to document.body so the fixed scrim + drawer escape any ancestor
+  // that establishes a containing block for fixed elements (e.g. an ancestor
+  // with backdrop-filter, which is exactly where this drawer often lives
+  // inside the prompt bar). Without this, the scrim is clipped to the ancestor
+  // box and tapping outside can't close the drawer.
+  return createPortal(
     <>
       <div className="ds-scrim" onClick={onClose} />
       <div
@@ -103,6 +109,7 @@ export function BottomDrawer({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
