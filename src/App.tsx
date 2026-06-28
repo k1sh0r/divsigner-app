@@ -1,22 +1,25 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { PromptBar, type PrimaryAction } from "./components/PromptBar";
-import { PosterCanvas, type FocusInfo } from "./components/PosterCanvas";
+import { TopNav } from "./components/TopNav";
+import { RightPane, SectionIcons, type Section } from "./components/RightPane";
+import { MobileMenu, type MobileMenuAction } from "./components/MobileMenu";
+import { useIsMobile } from "./hooks/useIsMobile";
+import { PropertiesPane } from "./components/panes/PropertiesPane";
+import { AssetsPane } from "./components/panes/AssetsPane";
+import { InfoPane } from "./components/panes/InfoPane";
+import { PaneHeader } from "./components/panes/PaneHeader";
+import { PosterCanvas, type FocusInfo, type PosterCanvasHandle } from "./components/PosterCanvas";
 import { HistoryList } from "./components/HistoryList";
 import { CodeEditor } from "./components/CodeEditor";
 import { StylesPane } from "./components/StylesPane";
 import { BackgroundsPane } from "./components/BackgroundsPane";
-import { parseBackgroundMeta } from "./backgrounds/parse";
+import { parseBackgroundMeta, injectBackgroundMeta } from "./backgrounds/parse";
 import { getBackground } from "./backgrounds/catalog";
-import {
-  CloseIcon,
-  CodeIcon,
-  CompareIcon,
-  FullPageIcon,
-  ListIcon,
-} from "./components/ui/icons";
+import { DEFAULT_GLOBAL_PARAMS } from "./backgrounds/types";
 import type { StyleImportValue } from "./components/StyleImportForm";
 import { useProviderConfig } from "./hooks/useProviderConfig";
+import { useModelList } from "./hooks/useModelList";
 import { useGeneration } from "./hooks/useGeneration";
 import { useFontEmbedding } from "./hooks/useFontEmbedding";
 import { useHistory, type HistoryBatch, type HistoryItem } from "./hooks/useHistory";
@@ -25,12 +28,37 @@ import { useStyles } from "./hooks/useStyles";
 import { exportPng, downloadHtml } from "./export/poster";
 import { sanitizeHTML } from "./utils/sanitize";
 import { resolveAssets } from "./utils/assets";
+import { readBgColor, writeBgColor } from "./utils/bgColor";
+import {
+  DownloadIcon,
+  HistoryIcon,
+  ImportIcon,
+  NewIcon,
+} from "./components/ui/icons";
 import { STYLES } from "./styles/index";
 import type { Style } from "./styles/types";
 import type { AspectRatioKey } from "./utils/constants";
 
+function RedDot() {
+  return (
+    <span
+      style={{
+        position: "absolute",
+        top: 4,
+        right: 4,
+        width: 7,
+        height: 7,
+        borderRadius: "999px",
+        background: "var(--danger)",
+        boxShadow: "0 0 0 2px var(--glass-1), 0 0 6px rgba(242,62,99,0.7)",
+      }}
+    />
+  );
+}
+
 export default function App() {
   const { config, updateConfig, validate } = useProviderConfig();
+  const { models: modelOptions, loading: modelLoading } = useModelList(config);
   const {
     generate,
     retry,
@@ -58,8 +86,6 @@ export default function App() {
   const { customStyles, addStyle, updateStyle, removeStyle } = useStyles();
 
   const [selectedPreset, setSelectedPreset] = useState<Style>(STYLES[0]!);
-  const [stylesPaneOpen, setStylesPaneOpen] = useState(false);
-  const [backgroundsPaneOpen, setBackgroundsPaneOpen] = useState(false);
   // Global pause for all background layers — stops animations and prevents crashing
   // backgrounds from consuming resources. Controlled by the pause button in BackgroundsPane.
   const [bgPaused, setBgPaused] = useState(false);
@@ -70,33 +96,29 @@ export default function App() {
   const [count, setCount] = useState(1);
   const [pendingRefs, setPendingRefs] = useState<string[]>([]);
   const [pendingAssets, setPendingAssets] = useState<StoredAsset[]>([]);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editorWidth, setEditorWidth] = useState(460);
-  const [showSettings, setShowSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [view, setView] = useState<"full" | "list">("full");
   const [compare, setCompare] = useState(false);
   const [focus, setFocus] = useState<FocusInfo>({ kind: "new" });
 
-  // Drag-to-resize the editor pane.
-  const rowRef = useRef<HTMLDivElement>(null);
-  const startResize = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    const onMove = (ev: PointerEvent) => {
-      const rect = rowRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const w = rect.right - ev.clientX;
-      setEditorWidth(Math.max(320, Math.min(rect.width - 360, w)));
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      document.body.style.userSelect = "";
-    };
-    document.body.style.userSelect = "none";
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  }, []);
+  // Imperative handle into PosterCanvas — used by the nav "New" button to
+  // scroll the slide deck back to the "New design" slide.
+  const posterCanvasRef = useRef<PosterCanvasHandle>(null);
+
+  // Right pane state machine (Photoshop-style collapsible inspector).
+  const [paneExpanded, setPaneExpanded] = useState(false);
+  const [openSection, setOpenSection] = useState<Section | null>(null);
+
+  // Mobile responsive: a bottom-drawer menu hosts the nav + right-pane
+  // sections instead of the desktop top-nav clusters and floating rail.
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Hidden HTML file input — Import lives in the nav now (lifted out of
+  // PromptBar so the tree stays green between commits).
+  const htmlRef = useRef<HTMLInputElement>(null);
+  // Hidden asset file input — triggered from Assets pane.
+  const assetRef = useRef<HTMLInputElement>(null);
 
   // Iterate the design the user is focused on; fresh when on the "New" slide.
   const iterating = focus.kind === "design";
@@ -130,6 +152,21 @@ export default function App() {
       setPendingAssets((a) => [...a, asset]);
     },
     [addAsset],
+  );
+
+  // Assets pane: hidden file input → handleAttachAsset.
+  const handleAssetFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleAttachAsset(reader.result as string, file.name);
+      };
+      reader.readAsDataURL(file);
+      e.target.value = "";
+    },
+    [handleAttachAsset],
   );
 
   // Record each finished job into history once (so it persists after the
@@ -180,6 +217,34 @@ export default function App() {
     [loadVariant, aspectRatio],
   );
 
+  // Nav Import: open the hidden HTML file picker; on file, run the existing
+  // import flow.
+  const handleHtmlFile = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onloadend = () => handleImportHtml(reader.result as string);
+      reader.readAsText(file);
+      e.target.value = "";
+    },
+    [handleImportHtml],
+  );
+
+  // Nav actions.
+  const handleNew = useCallback(() => {
+    setFocus({ kind: "new" });
+    setView("full");
+    // If the canvas is already mounted, scroll it to the New slide now.
+    // If we just switched out of the History list, PosterCanvas remounts and
+    // its own mount effect centers on the New slide, so the no-op is fine.
+    posterCanvasRef.current?.scrollToNew();
+  }, []);
+  const handleHistory = useCallback(
+    () => setView((v) => (v === "list" ? "full" : "list")),
+    [],
+  );
+
   const handleExport = useCallback(
     async (html: string, ar: AspectRatioKey) => {
       setExporting(true);
@@ -221,6 +286,17 @@ export default function App() {
   const focusedVariant = focusedJob?.variants[focusedJob.activeIndex] ?? null;
   const canCompare = focusedJob ? focusedJob.variants.length > 1 : false;
 
+  // Info pane: prompt/preferences + live model thinking/output for the
+  // focused job/variant. Updates live as tokens stream.
+  const info = focusedJob && focusedVariant ? {
+    prompt: focusedJob.prompt,
+    styleName: allStyles.find((s) => s.id === focusedJob.presetId)?.name ?? focusedJob.presetId,
+    aspectRatio: focusedJob.aspectRatio,
+    count: focusedJob.variants.length,
+    thinking: focusedVariant.thinking,
+    output: focusedVariant.rawHtml,
+  } : null;
+
   // Contextual primary button, driven by the focused slide:
   //   New slide            -> Generate
   //   streaming job        -> Stop (that job)
@@ -249,6 +325,55 @@ export default function App() {
   // The editor edits whichever design is currently focused (the slide you've
   // scrolled to), so the code follows the canvas.
   const focusedDesign = focus.kind === "design" ? focus : null;
+
+  // Background color for the Properties pane. When a background layer is
+  // applied the poster body is made transparent, so the visible bg color is
+  // the layer's `backgroundColor` — that's the single source of truth we
+  // surface here. Otherwise it's the poster body's own background.
+  const focusedBg = (() => {
+    if (!focusedDesign) return null;
+    const spec = parseBackgroundMeta(focusedDesign.html);
+    if (spec) {
+      const layerColor =
+        (spec.params.backgroundColor as string | undefined) ??
+        DEFAULT_GLOBAL_PARAMS.backgroundColor;
+      const hex = layerColor.replace(/^#/, "").toUpperCase();
+      return { hex, opacity: 100, isLayer: true };
+    }
+    return { ...readBgColor(focusedDesign.html), isLayer: false };
+  })();
+  const handleBgChange = useCallback(
+    (hex: string, opacity: number) => {
+      if (focus.kind !== "design") return;
+      const ref = focus.ref;
+      const writeBack = (newHtml: string) => {
+        if (ref.kind === "job") setJobHtml(ref.jobId, newHtml);
+        else updateItem(ref.batchId, ref.index, newHtml);
+      };
+      const spec = parseBackgroundMeta(focus.html);
+      if (spec) {
+        // Layer applied: update the layer's backgroundColor in the meta.
+        const newSpec = {
+          ...spec,
+          params: { ...spec.params, backgroundColor: `#${hex}` },
+        };
+        writeBack(injectBackgroundMeta(focus.html, newSpec));
+      } else {
+        writeBack(writeBgColor(focus.html, hex, opacity));
+      }
+    },
+    [focus, setJobHtml, updateItem],
+  );
+
+  // Nav export handlers (use the focused design).
+  const handleExportPng = useCallback(() => {
+    if (!focusedDesign) return;
+    handleExport(focusedDesign.html, focusedDesign.aspectRatio);
+  }, [focusedDesign, handleExport]);
+  const handleExportHtmlNav = useCallback(() => {
+    if (!focusedDesign) return;
+    handleDownload(focusedDesign.html, focusedDesign.aspectRatio);
+  }, [focusedDesign, handleDownload]);
 
   // Get current background info for the PromptBar button
   const currentBackgroundInfo = (() => {
@@ -281,37 +406,22 @@ export default function App() {
     [focus, setJobHtml, updateItem],
   );
 
-  const openEditor = () => {
-    setEditorOpen((o) => !o);
-    setShowSettings(false);
-    setStylesPaneOpen(false);
-  };
-  const toggleSettings = () => {
-    setShowSettings((s) => !s);
-    setEditorOpen(false);
-    setStylesPaneOpen(false);
-  };
   const openStylesPane = () => {
-    setStylesPaneOpen((o) => !o);
-    setEditorOpen(false);
-    setShowSettings(false);
-    setBackgroundsPaneOpen(false);
+    const next = openSection === "styles" ? null : "styles";
+    setOpenSection(next);
+    if (next && isMobile) setMobileMenuOpen(true);
   };
-
   const openBackgroundsPane = () => {
-    setBackgroundsPaneOpen((o) => !o);
-    setEditorOpen(false);
-    setShowSettings(false);
-    setStylesPaneOpen(false);
+    const next = openSection === "bg" ? null : "bg";
+    setOpenSection(next);
+    if (next && isMobile) setMobileMenuOpen(true);
   };
+  const closePane = useCallback(() => setOpenSection(null), []);
 
   // Stable handlers for the Backgrounds panel. Without these, the panel (and
   // its live WebGL preview) would re-render on every streamed token while a
   // generation runs, causing the backgrounds to flicker/restart.
-  const closeBackgroundsPane = useCallback(
-    () => setBackgroundsPaneOpen(false),
-    [],
-  );
+  const closeBackgroundsPane = useCallback(() => setOpenSection(null), []);
   const toggleBgPause = useCallback(() => setBgPaused((p) => !p), []);
   const handleBackgroundUpdateHtml = useCallback(
     (newHtml: string) => {
@@ -326,10 +436,10 @@ export default function App() {
   // Stable handlers for the Styles panel — keep the memoized StylesPane from
   // re-rendering (and remounting its preview iframes) on prompt typing /
   // generation, which otherwise made the style list flicker.
-  const closeStylesPane = useCallback(() => setStylesPaneOpen(false), []);
+  const closeStylesPane = useCallback(() => setOpenSection(null), []);
   const handleSelectStyle = useCallback((s: Style) => {
     setSelectedPreset(s);
-    setStylesPaneOpen(false);
+    setOpenSection(null);
   }, []);
   const handleSaveStyle = useCallback(
     (v: StyleImportValue) =>
@@ -354,73 +464,175 @@ export default function App() {
     [updateStyle],
   );
 
-  // One toolbar-button treatment, shared by every top-bar control.
-  const toolBtn = (active: boolean) =>
-    `flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile ${
-      active
-        ? "border-accent bg-accent/15 text-text shadow-[0_0_12px_rgba(107,87,238,0.15)]"
-        : "border-border bg-surface-2 text-text-muted hover:border-border-strong hover:text-text hover:bg-surface-3"
-    }`;
-  // Segmented control inside the view switcher.
-  const segBtn = (sel: boolean) =>
-    `flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-sm font-medium transition-all duration-150 btn-tactile ${
-      sel ? "bg-surface-3 text-text shadow-sm" : "text-text-muted hover:text-text"
-    }`;
+  const sections = [
+    {
+      id: "html" as const,
+      label: "Edit HTML",
+      icon: SectionIcons.html,
+      body: focusedDesign ? (
+        <CodeEditor value={editorValue} onChange={handleEditorChange} onClose={closePane} />
+      ) : (
+        <div className="flex h-full flex-col">
+          <PaneHeader title="Edit HTML" onClose={closePane} />
+          <div className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
+            Scroll to a design to edit its code, or generate/import one.
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "properties" as const,
+      label: "Properties",
+      icon: SectionIcons.properties,
+      body: (
+        <PropertiesPane
+          count={count}
+          onCountChange={setCount}
+          aspectRatio={aspectRatio}
+          onAspectChange={setAspectRatio}
+          bg={focusedBg}
+          onBgChange={handleBgChange}
+          onClose={closePane}
+        />
+      ),
+    },
+    {
+      id: "styles" as const,
+      label: "Styles",
+      icon: SectionIcons.styles,
+      body: (
+        <StylesPane
+          styles={allStyles}
+          selectedId={selectedPreset.id}
+          fontEmbedCSS={fontEmbedCSS}
+          config={config}
+          onSelect={handleSelectStyle}
+          onSaveStyle={handleSaveStyle}
+          onUpdateStyle={handleUpdateStyle}
+          onDeleteCustom={removeStyle}
+          onClose={closeStylesPane}
+        />
+      ),
+    },
+    {
+      id: "assets" as const,
+      label: "Assets",
+      icon: SectionIcons.assets,
+      body: (
+        <AssetsPane
+          assets={pendingAssets}
+          onAdd={() => assetRef.current?.click()}
+          onRemove={(id) => setPendingAssets((a) => a.filter((x) => x.id !== id))}
+          onClose={closePane}
+        />
+      ),
+    },
+    {
+      id: "bg" as const,
+      label: "BG",
+      icon: SectionIcons.bg,
+      body: focusedDesign ? (
+        <BackgroundsPane
+          html={focusedDesign.html}
+          onUpdateHtml={handleBackgroundUpdateHtml}
+          onClose={closeBackgroundsPane}
+          paused={bgPaused}
+          onTogglePause={toggleBgPause}
+        />
+      ) : (
+        <div className="flex h-full flex-col">
+          <PaneHeader title="Backgrounds" onClose={closePane} />
+          <div className="flex flex-1 items-center justify-center px-4 py-10 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
+            Focus a design to browse backgrounds.
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "info" as const,
+      label: "Info",
+      icon: SectionIcons.info,
+      body: <InfoPane info={info} onClose={closePane} />,
+    },
+    {
+      id: "settings" as const,
+      label: "Settings",
+      icon: SectionIcons.settings,
+      badge: !config.apiKey ? <RedDot /> : null,
+      body: (
+        <SettingsPanel
+          providerId={config.providerId}
+          apiKey={config.apiKey}
+          model={config.model}
+          enhanceModel={config.enhanceModel}
+          customBaseUrl={config.customBaseUrl}
+          onUpdate={updateConfig}
+          onValidate={validate}
+          onClose={closePane}
+        />
+      ),
+    },
+  ];
+
+  // Mobile menu: nav actions first, then the right-pane sections. Selecting a
+  // section opens its panel inside the same bottom drawer.
+  const mobileActions: MobileMenuAction[] = [
+    { id: "new", label: "New", hint: "Start a blank design", icon: <NewIcon size={18} />, onSelect: handleNew },
+    { id: "import", label: "Import", hint: "Load an HTML file", icon: <ImportIcon size={18} />, onSelect: () => htmlRef.current?.click() },
+    {
+      id: "history",
+      label: "History",
+      hint: view === "list" ? "Showing history" : "Browse past designs",
+      icon: <HistoryIcon size={18} />,
+      onSelect: handleHistory,
+    },
+    {
+      id: "export",
+      label: "Export",
+      hint: focusedDesign ? "PNG / HTML" : "Focus a design first",
+      icon: <DownloadIcon size={18} />,
+      onSelect: () => focusedDesign && handleExportPng(),
+    },
+    ...sections.map((s) => ({
+      id: s.id,
+      label: s.label,
+      icon: s.icon,
+      badge: s.badge,
+      panel: s.body,
+    })),
+  ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-bg text-text">
+    <div className="ds-canvas flex h-screen overflow-hidden text-text">
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
-          {/* Brand wordmark */}
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="Divsigner" width="28" height="28" className="h-7 w-7 rounded-md" />
+        <TopNav
+          onNew={handleNew}
+          onImport={() => htmlRef.current?.click()}
+          onHistory={handleHistory}
+          historyActive={view === "list"}
+          onExportPng={handleExportPng}
+          onExportHtml={handleExportHtmlNav}
+          canExport={Boolean(focusedDesign)}
+          exporting={exporting}
+          error={error}
+          onOpenMenu={() => setMobileMenuOpen(true)}
+        />
+        <input
+          ref={htmlRef}
+          type="file"
+          accept=".html,.htm,text/html"
+          onChange={handleHtmlFile}
+          className="hidden"
+        />
+        <input
+          ref={assetRef}
+          type="file"
+          accept="image/*"
+          onChange={handleAssetFile}
+          className="hidden"
+        />
 
-            <span className="font-display text-[15px] font-bold tracking-tight text-text">
-              Div<span className="text-accent-soft">signer</span>
-            </span>
-          </div>
-
-          {error && (
-            <div
-              role="alert"
-              className="ml-3 flex min-w-0 items-center gap-2 rounded-md border border-danger/40 bg-danger/10 px-2.5 py-1 text-xs text-danger animate-[fadeIn_200ms_ease]"
-            >
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-danger animate-pulse" />
-              <span className="truncate">{error}</span>
-            </div>
-          )}
-
-          <div className="ml-auto flex items-center gap-2">
-            {canCompare && (
-              <button
-                onClick={() => setCompare((c) => !c)}
-                title="Compare variants side by side"
-                className={toolBtn(compare)}
-              >
-                <CompareIcon />
-                Compare
-              </button>
-            )}
-
-            <div className="flex rounded-md border border-border bg-surface-2 p-0.5">
-              <button onClick={() => setView("full")} className={segBtn(view === "full")} title="Full page">
-                <FullPageIcon size={14} />
-                Full
-              </button>
-              <button onClick={() => setView("list")} className={segBtn(view === "list")} title="List view">
-                <ListIcon size={14} />
-                List
-              </button>
-            </div>
-
-            <button onClick={openEditor} title="Edit the HTML manually" className={toolBtn(editorOpen)}>
-              <CodeIcon />
-              Edit code
-            </button>
-          </div>
-        </header>
-
-        <div ref={rowRef} className="flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 flex-1">
           <div className="min-h-0 min-w-0 flex-1">
             {view === "list" ? (
               <HistoryList
@@ -433,13 +645,11 @@ export default function App() {
               />
             ) : (
               <PosterCanvas
+                ref={posterCanvasRef}
                 jobs={jobs}
                 batches={batches}
                 excludeBatchIds={excludeBatchIds}
                 newSlideAspect={aspectRatio}
-                exporting={exporting}
-                onExport={handleExport}
-                onDownload={handleDownload}
                 fontEmbedCSS={fontEmbedCSS}
                 assets={assetMap}
                 compare={compare}
@@ -450,81 +660,25 @@ export default function App() {
             )}
           </div>
 
-          {editorOpen && (
-            <>
-              <div
-                onPointerDown={startResize}
-                className="w-1.5 shrink-0 cursor-col-resize bg-border transition-colors hover:bg-accent"
-              />
-              <div
-                style={{ width: editorWidth, boxShadow: "var(--shadow-pane)" }}
-                className="flex min-h-0 shrink-0 flex-col bg-surface animate-[slideInRight_200ms_cubic-bezier(0.16,1,0.3,1)]"
-              >
-                <div className="flex h-11 shrink-0 items-center justify-between border-b border-border px-3">
-                  <span className="section-label">Code</span>
-                  <button
-                    onClick={() => setEditorOpen(false)}
-                    aria-label="Close editor"
-                    className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition-all duration-150 hover:bg-surface-2 hover:text-text btn-tactile"
-                  >
-                    <CloseIcon />
-                  </button>
-                </div>
-                <div className="min-h-0 flex-1">
-                  {focusedDesign ? (
-                    <CodeEditor value={editorValue} onChange={handleEditorChange} />
-                  ) : (
-                    <div className="flex h-full items-center justify-center px-4 text-center text-sm text-text-faint animate-[fadeIn_300ms_ease]">
-                      Scroll to a design to edit its code, or generate/import
-                      one.
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
+          {!isMobile && (
+            <RightPane
+              expanded={paneExpanded}
+              openSection={openSection}
+              onToggleExpanded={() => setPaneExpanded((e) => !e)}
+              onOpenSection={setOpenSection}
+              sections={sections}
+            />
           )}
 
-          {showSettings && (
-            <div className="panel-enter flex shrink-0">
-              <SettingsPanel
-                providerId={config.providerId}
-                apiKey={config.apiKey}
-                model={config.model}
-                enhanceModel={config.enhanceModel}
-                customBaseUrl={config.customBaseUrl}
-                onUpdate={updateConfig}
-                onValidate={validate}
-                onClose={() => setShowSettings(false)}
-              />
-            </div>
-          )}
-
-          {stylesPaneOpen && (
-            <div className="panel-enter flex shrink-0">
-              <StylesPane
-                styles={allStyles}
-                selectedId={selectedPreset.id}
-                fontEmbedCSS={fontEmbedCSS}
-                config={config}
-                onSelect={handleSelectStyle}
-                onSaveStyle={handleSaveStyle}
-                onUpdateStyle={handleUpdateStyle}
-                onDeleteCustom={removeStyle}
-                onClose={closeStylesPane}
-              />
-            </div>
-          )}
-
-          {backgroundsPaneOpen && focusedDesign && (
-            <div className="panel-enter flex shrink-0">
-              <BackgroundsPane
-                html={focusedDesign.html}
-                onUpdateHtml={handleBackgroundUpdateHtml}
-                onClose={closeBackgroundsPane}
-                paused={bgPaused}
-                onTogglePause={toggleBgPause}
-              />
-            </div>
+          {isMobile && (
+            <MobileMenu
+              open={mobileMenuOpen}
+              onClose={() => setMobileMenuOpen(false)}
+              title="Menu"
+              actions={mobileActions}
+              activeId={openSection}
+              onOpenSection={(id) => setOpenSection(id as Section | null)}
+            />
           )}
         </div>
 
@@ -549,8 +703,13 @@ export default function App() {
           onRemoveAsset={(id) =>
             setPendingAssets((a) => a.filter((x) => x.id !== id))
           }
-          onImportHtml={handleImportHtml}
-          onToggleSettings={toggleSettings}
+          showCompare={canCompare}
+          compareActive={compare}
+          onToggleCompare={() => setCompare((c) => !c)}
+          model={config.model}
+          onModelChange={(m) => updateConfig({ model: m })}
+          modelOptions={modelOptions}
+          modelLoading={modelLoading}
           onEnhancePrompt={async () => {
             if (!userPrompt.trim() || !config.apiKey) return;
             setEnhancing(true);

@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { PreviewFrame } from "./PreviewFrame";
 import { PlusIcon } from "./ui/icons";
 import type { GenJob, Variant } from "../hooks/useGeneration";
@@ -6,6 +13,7 @@ import type { HistoryBatch } from "../hooks/useHistory";
 import { ASPECT_RATIOS, type AspectRatioKey } from "../utils/constants";
 import type { AssetMap } from "../utils/assets";
 import { BackgroundLayer } from "../backgrounds/components/BackgroundLayer";
+import { useIsMobile } from "../hooks/useIsMobile";
 
 function InterruptionBadge({ variant }: { variant: Variant }) {
   if (!variant.wasInterrupted) return null;
@@ -54,9 +62,6 @@ interface PosterCanvasProps {
   excludeBatchIds: Set<string>;
   /** Aspect ratio used to size the "New design" slide. */
   newSlideAspect: AspectRatioKey;
-  exporting: boolean;
-  onExport: (html: string, ar: AspectRatioKey) => void;
-  onDownload: (html: string, ar: AspectRatioKey) => void;
   fontEmbedCSS: string;
   assets: AssetMap;
   compare: boolean;
@@ -99,9 +104,6 @@ function Poster({
   aspectRatio,
   fontEmbedCSS,
   assets,
-  onExport,
-  onDownload,
-  exporting,
   variant,
   bgPaused,
 }: {
@@ -109,9 +111,6 @@ function Poster({
   aspectRatio: AspectRatioKey;
   fontEmbedCSS: string;
   assets: AssetMap;
-  onExport: (html: string, ar: AspectRatioKey) => void;
-  onDownload: (html: string, ar: AspectRatioKey) => void;
-  exporting: boolean;
   variant?: Variant;
   bgPaused?: boolean;
 }) {
@@ -176,21 +175,6 @@ function Poster({
           </div>
         </div>
       )}
-      <div className="pointer-events-none absolute right-3 top-3 flex gap-2 opacity-0 translate-y-[-4px] transition-all duration-200 group-hover:opacity-100 group-hover:translate-y-0">
-        <button
-          onClick={() => onExport(html, aspectRatio)}
-          disabled={exporting}
-          className="pointer-events-auto rounded-md bg-black/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur hover:bg-black transition-all duration-150 disabled:opacity-50 btn-tactile"
-        >
-          {exporting ? "Exporting…" : "Download PNG"}
-        </button>
-        <button
-          onClick={() => onDownload(html, aspectRatio)}
-          className="pointer-events-auto rounded-md bg-black/70 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur hover:bg-black transition-all duration-150 btn-tactile"
-        >
-          HTML
-        </button>
-      </div>
     </div>
   );
 }
@@ -215,14 +199,20 @@ function VariantPills({
           <button
             key={i}
             onClick={() => onSelect(i)}
-            className={`flex h-9 min-w-9 items-center justify-center rounded-md border px-3 text-xs font-mono transition-all duration-150 btn-tactile ${
+            className={`flex h-9 min-w-9 items-center justify-center px-3 text-xs font-mono transition-all duration-150 btn-tactile ${
               i === selected
-                ? "border-accent bg-accent/15 text-text shadow-[0_0_10px_rgba(107,87,238,0.15)]"
-                : "border-border bg-surface-2 text-text-muted hover:border-border-strong hover:text-text"
+                ? "text-text"
+                : "text-text-muted hover:text-text"
             }`}
+            style={{
+              borderRadius: "var(--radius-sm)",
+              ...(i === selected
+                ? { background: "var(--accent-soft-rgba)", boxShadow: "inset 0 0 0 1px var(--border-accent), var(--glow-soft)" }
+                : { background: "var(--glass-2)", boxShadow: "var(--emboss-neutral)" }),
+            }}
           >
             {st === "streaming" ? (
-              <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
+              <span className="h-2 w-2 animate-pulse" style={{ borderRadius: "var(--radius-pill)", background: "var(--accent)" }} />
             ) : st === "error" ? (
               <span className="text-danger">!</span>
             ) : (
@@ -237,32 +227,81 @@ function VariantPills({
 
 function Slide({
   children,
-  label,
 }: {
   children: React.ReactNode;
-  label?: string;
 }) {
   return (
     <section className="relative flex h-full shrink-0 snap-center flex-col">
-      {label && (
-        <div className="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 max-w-[60%] truncate rounded-md border border-border bg-surface/80 px-3 py-1 text-[11px] text-text-muted backdrop-blur transition-opacity duration-200">
-          {label}
-        </div>
-      )}
       {children}
     </section>
   );
 }
 
-export function PosterCanvas(props: PosterCanvasProps) {
+/** The vertical dot navigator. Rendered once for desktop (docked, reserves
+ *  space) and once for mobile (overlay, auto-hides) by PosterCanvas. */
+function Dots({
+  slides,
+  H,
+  J,
+  newIdx,
+  focusIdx,
+  jobs,
+  onSelect,
+}: {
+  slides: number;
+  H: number;
+  J: number;
+  newIdx: number;
+  focusIdx: number;
+  jobs: GenJob[];
+  onSelect: (i: number) => void;
+}) {
+  return (
+    <>
+      {Array.from({ length: slides }, (_, i) => {
+        const isNew = i === newIdx;
+        const isJob = i >= H && i < H + J;
+        const jobStreaming = isJob && jobs[i - H]?.loading ? true : false;
+        return (
+          <button
+            key={i}
+            onClick={() => onSelect(i)}
+            title={
+              isNew
+                ? "New design"
+                : isJob
+                  ? jobStreaming
+                    ? "Generating"
+                    : "Current"
+                  : "Earlier"
+            }
+            className={`rounded-full transition-all duration-200 ${
+              i === focusIdx
+                ? jobStreaming
+                  ? "h-5 w-1.5 bg-accent dot-active shadow-[0_0_8px_rgba(107,87,238,0.4)]"
+                  : "h-5 w-1.5 bg-accent dot-active shadow-[0_0_8px_rgba(107,87,238,0.4)]"
+                : jobStreaming
+                  ? "h-1.5 w-1.5 bg-accent/60 animate-pulse"
+                  : "h-1.5 w-1.5 bg-border hover:bg-border-strong"
+            }`}
+          />
+        );
+      })}
+    </>
+  );
+}
+
+export interface PosterCanvasHandle {
+  scrollToNew: () => void;
+}
+
+export const PosterCanvas = forwardRef<PosterCanvasHandle, PosterCanvasProps>(
+  function PosterCanvas(props, ref) {
   const {
     jobs,
     batches,
     excludeBatchIds,
     newSlideAspect,
-    exporting,
-    onExport,
-    onDownload,
     fontEmbedCSS,
     assets,
     compare,
@@ -278,6 +317,24 @@ export function PosterCanvas(props: PosterCanvasProps) {
   // Track the most recent job id so we can scroll to a newly added job.
   const lastJobId = useRef<string | null>(null);
 
+  // Mobile: the dot navigator is an overlay that briefly appears after the
+  // user scrolls (or after a programmatic scroll), then fades out so it never
+  // reserves canvas width. Desktop keeps the docked rail.
+  const isMobile = useIsMobile();
+  const [dotsVisible, setDotsVisible] = useState(false);
+  const hideTimer = useRef<number | null>(null);
+  const flashDots = useCallback(() => {
+    setDotsVisible(true);
+    if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    hideTimer.current = window.setTimeout(() => setDotsVisible(false), 2000);
+  }, []);
+  useEffect(
+    () => () => {
+      if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    },
+    [],
+  );
+
   // Oldest → newest history, excluding batches already shown as job slides.
   const historyBatches = [...batches]
     .reverse()
@@ -286,6 +343,18 @@ export function PosterCanvas(props: PosterCanvasProps) {
   const H = historyBatches.length;
   const J = jobs.length;
   const newIdx = H + J;
+
+  // Imperative scroll-to-New for the nav "New" button.
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToNew: () => {
+        const el = scrollRef.current;
+        if (el) el.scrollTo({ top: newIdx * el.clientHeight, behavior: "smooth" });
+      },
+    }),
+    [newIdx],
+  );
 
   const reportFocus = (idx: number) => {
     if (idx === newIdx) {
@@ -359,6 +428,7 @@ export function PosterCanvas(props: PosterCanvasProps) {
   const onScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
+    if (isMobile) flashDots();
     const idx = Math.round(el.scrollTop / el.clientHeight);
     if (idx !== focusIdx) {
       setFocusIdx(idx);
@@ -391,16 +461,13 @@ export function PosterCanvas(props: PosterCanvasProps) {
           const sel = histSel[b.id] ?? 0;
           const item = b.items[sel]!;
           return (
-            <Slide key={b.id} label={b.prompt || "Untitled"}>
-              <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+            <Slide key={b.id}>
+              <div className="flex min-h-0 flex-1 items-center justify-center p-2 md:p-6">
                 <Poster
                   html={item.html}
                   aspectRatio={b.aspectRatio}
                   fontEmbedCSS={fontEmbedCSS}
                   assets={assets}
-                  onExport={onExport}
-                  onDownload={onDownload}
-                  exporting={exporting}
                   bgPaused={bgPaused}
                 />
               </div>
@@ -428,8 +495,8 @@ export function PosterCanvas(props: PosterCanvasProps) {
           const v = job.variants[job.activeIndex]!;
           const showCompare = compare && job.variants.length > 1;
           return (
-            <Slide key={job.id} label={job.prompt || undefined}>
-              <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+            <Slide key={job.id}>
+              <div className="flex min-h-0 flex-1 items-center justify-center p-2 md:p-6">
                 {v.status === "streaming" ? (
                   <StreamingView variant={v} />
                 ) : v.status === "error" && !v.html ? (
@@ -481,9 +548,6 @@ export function PosterCanvas(props: PosterCanvasProps) {
                     aspectRatio={job.aspectRatio}
                     fontEmbedCSS={fontEmbedCSS}
                     assets={assets}
-                    onExport={onExport}
-                    onDownload={onDownload}
-                    exporting={exporting}
                     variant={v}
                     bgPaused={bgPaused}
                   />
@@ -504,7 +568,7 @@ export function PosterCanvas(props: PosterCanvasProps) {
 
         {/* New design */}
         <Slide>
-          <div className="flex h-full items-center justify-center p-6">
+          <div className="flex h-full items-center justify-center p-2 md:p-6">
             <div
               className="flex items-center justify-center rounded-lg border border-dashed border-border bg-surface transition-all duration-200 hover:border-border-strong hover:shadow-[0_0_30px_rgba(107,87,238,0.08)] group"
               style={{
@@ -531,44 +595,47 @@ export function PosterCanvas(props: PosterCanvasProps) {
         </Slide>
       </div>
 
-      {/* Dot rail + scroll hints */}
+      {/* Dot rail + scroll hints. Right margin clears the floating right-pane
+          rail (absolute, ~56px) so the dots aren't hidden underneath it. */}
       {slides > 1 && (
-        <div className="flex w-10 shrink-0 flex-col items-center justify-center gap-2">
-          {Array.from({ length: slides }, (_, i) => {
-            const isNew = i === newIdx;
-            const isJob = i >= H && i < H + J;
-            const jobStreaming =
-              isJob && jobs[i - H]?.loading ? true : false;
-            return (
-              <button
-                key={i}
-                onClick={() => scrollTo(i)}
-                title={
-                  isNew
-                    ? "New design"
-                    : isJob
-                      ? jobStreaming
-                        ? "Generating"
-                        : "Current"
-                      : "Earlier"
-                }
-                className={`rounded-full transition-all duration-200 ${
-                  i === focusIdx
-                    ? jobStreaming
-                      ? "h-5 w-1.5 bg-accent dot-active shadow-[0_0_8px_rgba(107,87,238,0.4)]"
-                      : "h-5 w-1.5 bg-accent dot-active shadow-[0_0_8px_rgba(107,87,238,0.4)]"
-                    : jobStreaming
-                      ? "h-1.5 w-1.5 bg-accent/60 animate-pulse"
-                      : "h-1.5 w-1.5 bg-border hover:bg-border-strong"
-                }`}
-              />
-            );
-          })}
+        <div className="mr-[64px] hidden w-10 shrink-0 flex-col items-center justify-center gap-2 md:flex">
+          <Dots
+            slides={slides}
+            H={H}
+            J={J}
+            newIdx={newIdx}
+            focusIdx={focusIdx}
+            jobs={jobs}
+            onSelect={scrollTo}
+          />
+        </div>
+      )}
+
+      {/* Mobile overlay dots: float over the image, auto-show ~2s after scroll,
+          then fade out (pointer-events off while hidden). Never reserves width
+          or pushes content down. */}
+      {slides > 1 && isMobile && (
+        <div
+          aria-hidden={!dotsVisible}
+          className={`pointer-events-none absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col items-center gap-2 transition-opacity duration-300 ${
+            dotsVisible ? "opacity-100" : "opacity-0"
+          }`}
+          style={{ pointerEvents: dotsVisible ? "auto" : "none" }}
+        >
+          <Dots
+            slides={slides}
+            H={H}
+            J={J}
+            newIdx={newIdx}
+            focusIdx={focusIdx}
+            jobs={jobs}
+            onSelect={scrollTo}
+          />
         </div>
       )}
 
       {notesText && (
-        <div className="flex w-72 shrink-0 flex-col border-l border-border bg-surface">
+        <div className="hidden w-72 shrink-0 flex-col border-l border-border bg-surface md:flex">
           <div className="section-label px-4 py-3">Model notes</div>
           <pre className="scroll-thin flex-1 overflow-y-auto whitespace-pre-wrap break-words px-4 pb-4 font-mono text-[12px] leading-relaxed text-text-muted">
             {notesText}
@@ -577,4 +644,5 @@ export function PosterCanvas(props: PosterCanvasProps) {
       )}
     </div>
   );
-}
+  }
+);

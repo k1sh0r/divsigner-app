@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { CloseIcon } from "./ui/icons";
-import type { ProviderId } from "../providers/types";
+import { PaneHeader } from "./panes/PaneHeader";
+import type { ProviderId, ProviderConfig } from "../providers/types";
 import { PROVIDERS } from "../providers/config";
 import type { ValidationResult } from "../providers/validation";
+import { useModelList } from "../hooks/useModelList";
 
 interface SettingsPanelProps {
   providerId: ProviderId;
@@ -38,8 +39,11 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<ValidationResult | null>(null);
-  const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [loadingModels, setLoadingModels] = useState(false);
+  const { models: availableModels, loading: loadingModels, supportsEndpoint } = useModelList({
+    providerId,
+    apiKey,
+    customBaseUrl,
+  } as ProviderConfig);
   const [manualModel, setManualModel] = useState(model);
   const [manualEnhanceModel, setManualEnhanceModel] = useState(enhanceModel || "");
 
@@ -48,46 +52,17 @@ export function SettingsPanel({
   useEffect(() => setManualModel(model), [model]);
   useEffect(() => setManualEnhanceModel(enhanceModel || ""), [enhanceModel]);
 
-  // Auto-fetch the model list when the panel opens with a saved key, so the
-  // dropdowns render immediately without requiring a Save click. Re-runs when
-  // the provider or custom base URL changes (different /models endpoint).
-  // Debounced so editing the key field doesn't fire a request per keystroke.
-  useEffect(() => {
-    if (!apiKey || !def.supportsModelsEndpoint) {
-      setAvailableModels([]);
-      return;
-    }
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      setLoadingModels(true);
-      onValidate()
-        .then((res) => {
-          if (cancelled) return;
-          setResult(res);
-          if (res.models) setAvailableModels(res.models);
-        })
-        .catch(() => {
-          /* leave dropdowns as manual inputs */
-        })
-        .finally(() => {
-          if (!cancelled) setLoadingModels(false);
-        });
-    }, 600);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiKey, providerId, customBaseUrl, def.supportsModelsEndpoint]);
-
-  const handleSave = useCallback(async () => {
-    onUpdate({ model: manualModel, enhanceModel: manualEnhanceModel });
+  const handleValidate = useCallback(async () => {
     setSaving(true);
     const res = await onValidate();
     setResult(res);
-    if (res.models) setAvailableModels(res.models);
     setSaving(false);
-  }, [manualModel, manualEnhanceModel, onUpdate, onValidate]);
+  }, [onValidate]);
+
+  const handleSaveAndClose = useCallback(() => {
+    onUpdate({ model: manualModel, enhanceModel: manualEnhanceModel });
+    onClose();
+  }, [manualModel, manualEnhanceModel, onUpdate, onClose]);
 
   const statusColor = result
     ? result.valid
@@ -96,19 +71,10 @@ export function SettingsPanel({
     : "text-text-faint";
 
   return (
-    <aside style={{ boxShadow: "var(--shadow-pane)" }} className="scroll-thin w-[320px] shrink-0 h-full border-l border-border bg-surface overflow-y-auto">
-      <div className="flex h-14 items-center justify-between border-b border-border px-6">
-        <h2 className="font-display text-base font-bold text-text">Settings</h2>
-        <button
-          onClick={onClose}
-          aria-label="Close settings"
-          className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition-all duration-150 hover:bg-surface-2 hover:text-text btn-tactile"
-        >
-          <CloseIcon size={18} />
-        </button>
-      </div>
+    <aside className="flex w-full h-full flex-col" style={{ background: "var(--glass-3)", backdropFilter: "var(--blur-lg)", WebkitBackdropFilter: "var(--blur-lg)" }}>
+      <PaneHeader title="Settings" onClose={onClose} />
 
-      <div className="px-6 pt-6 space-y-5">
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 pt-6 pb-6 space-y-5">
         <div>
           <label className={labelClass}>Provider</label>
           <select
@@ -116,7 +82,6 @@ export function SettingsPanel({
             onChange={(e) => {
               onUpdate({ providerId: e.target.value as ProviderId });
               setResult(null);
-              setAvailableModels([]);
             }}
             className={fieldClass}
           >
@@ -155,14 +120,6 @@ export function SettingsPanel({
           />
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={!apiKey || saving}
-          className="rounded-md bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 text-sm font-bold text-white transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile"
-        >
-          {saving ? "Saving…" : "Save & validate"}
-        </button>
-
         {result && (
           <p className={`text-xs ${statusColor} break-words animate-[fadeIn_200ms_ease]`}>
             {result.valid
@@ -174,9 +131,8 @@ export function SettingsPanel({
         )}
 
         {/* Models are shown whenever we have a key + a /models endpoint,
-            not only after an explicit Save. This is the fix for "models only
-            display when I save the API every time". */}
-        {apiKey && def.supportsModelsEndpoint && (
+            not only after an explicit Save. */}
+        {apiKey && supportsEndpoint && (
           <>
             <div>
               <label className={labelClass}>
@@ -242,6 +198,23 @@ export function SettingsPanel({
             </div>
           </>
         )}
+      </div>
+
+      <div className="flex shrink-0 gap-3 border-t border-border px-4 py-4">
+        <button
+          onClick={handleValidate}
+          disabled={!apiKey || saving}
+          className="rounded-md bg-surface-2 border border-border hover:bg-surface-3 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 text-sm font-bold text-text transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile"
+        >
+          {saving ? "Validating…" : "Validate"}
+        </button>
+        <button
+          onClick={handleSaveAndClose}
+          disabled={!apiKey}
+          className="flex-1 rounded-md bg-accent hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2 text-sm font-bold text-white transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile"
+        >
+          Save & close
+        </button>
       </div>
     </aside>
   );

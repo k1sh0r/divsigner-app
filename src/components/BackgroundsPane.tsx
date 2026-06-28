@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, Suspense, memo } from "react";
 import { BackIcon, CloseIcon, InfoIcon, PauseIcon, PlayIcon } from "./ui/icons";
+import { usePaneChrome } from "./panes/PaneContext";
 import { getAllBackgrounds, getBackground } from "../backgrounds/catalog";
 import {
   parseBackgroundMeta,
@@ -145,22 +146,6 @@ function GlobalParamEditor({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* backgroundColor */}
-      <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-text">BG Color</label>
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={String(values.backgroundColor ?? DEFAULT_GLOBAL_PARAMS.backgroundColor)}
-            onChange={(e) => set("backgroundColor", e.target.value)}
-            className="h-8 w-8 cursor-pointer rounded border border-border bg-transparent"
-          />
-          <span className="text-xs font-mono text-text-muted">
-            {String(values.backgroundColor ?? DEFAULT_GLOBAL_PARAMS.backgroundColor)}
-          </span>
-        </div>
-      </div>
-
       {/* opacity */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
@@ -431,31 +416,42 @@ function BackgroundsPaneImpl({
   }: {
     title: string;
     onBack?: () => void;
-  }) => (
-    <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-      <div className="flex min-w-0 items-center gap-2">
-        {onBack && (
+  }) => {
+    // Docked in the accordion the gallery header is pure chrome (title + close
+    // are both redundant) so it disappears; the info sub-view keeps its back
+    // arrow + name for navigation.
+    const { docked } = usePaneChrome();
+    if (docked && !onBack) return null;
+    return (
+      <div className="flex h-14 shrink-0 items-center justify-between px-4" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+        <div className="flex min-w-0 items-center gap-2">
+          {onBack && (
+            <button
+              onClick={onBack}
+              aria-label="Back"
+              className="flex h-7 w-7 items-center justify-center text-text-muted transition-all duration-150 hover:text-text btn-tactile"
+              style={{ borderRadius: "var(--radius-sm)" }}
+            >
+              <BackIcon />
+            </button>
+          )}
+          <h2 className="truncate font-mono text-[13px] font-medium tracking-[var(--tracking-mono)] text-text">
+            {title}
+          </h2>
+        </div>
+        {!docked && (
           <button
-            onClick={onBack}
-            aria-label="Back"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition-all duration-150 hover:bg-surface-2 hover:text-text btn-tactile"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-7 w-7 items-center justify-center text-text-muted transition-all duration-150 hover:text-text btn-tactile"
+            style={{ borderRadius: "var(--radius-sm)" }}
           >
-            <BackIcon />
+            <CloseIcon />
           </button>
         )}
-        <h2 className="truncate font-display text-sm font-bold text-text">
-          {title}
-        </h2>
       </div>
-      <button
-        onClick={onClose}
-        aria-label="Close"
-        className="flex h-7 w-7 items-center justify-center rounded-md text-text-muted transition-all duration-150 hover:bg-surface-2 hover:text-text btn-tactile"
-      >
-        <CloseIcon />
-      </button>
-    </div>
-  );
+    );
+  };
 
   const Row = ({ def, i }: { def: BackgroundDef; i: number }) => {
     const isSelected = currentSpec?.id === def.id;
@@ -483,7 +479,8 @@ function BackgroundsPaneImpl({
         <button
           onClick={() => setView({ kind: "info", id: def.id })}
           aria-label={`${def.name} info`}
-          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md border border-border bg-surface text-text-muted transition-all duration-150 hover:border-accent hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile"
+          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center text-text-muted transition-all duration-150 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent btn-tactile"
+          style={{ borderRadius: "var(--radius-sm)", background: "var(--glass-2)", boxShadow: "var(--emboss-neutral)" }}
         >
           <InfoIcon size={14} />
         </button>
@@ -492,7 +489,7 @@ function BackgroundsPaneImpl({
   };
 
   return (
-    <aside className="flex w-[380px] shrink-0 flex-col border-l border-border bg-surface">
+    <aside className="flex w-full shrink-0 flex-col" style={{ background: "transparent" }}>
       {view.kind === "gallery" && (
         <>
           <Header title="Backgrounds" />

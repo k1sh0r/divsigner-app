@@ -103,66 +103,260 @@
   src: url("/fonts/space-grotesk-v17-latin-700.woff2") format("woff2");
 }
 
-/* ---- Design tokens ----
-   Brand purple is hsl(251 82% 64%) = #6B57EE. Secondary accent orange #FF7605.
-   Sharp corners (--radius:0) and Chivo (headings) / Inter (body) /
-   JetBrains Mono (mono). */
+/* ---- Design tokens (Divsigner Design System) ----
+   Dark, glassy, purple-forward, tactile. Space Grotesk UI + JetBrains Mono.
+   Ported from tokens/colors.css, tokens/spacing.css, tokens/effects.css,
+   tokens/typography.css. */
 @theme {
-  --color-bg: #0A0A0A;
-  --color-surface: #111114;
-  --color-surface-2: #1A1A1F;
-  --color-surface-3: #22272E;
-  --color-border: #333333;
-  --color-border-strong: #4B5563;
-  --color-accent: #6B57EE;
-  --color-accent-hover: #5A46D6;
-  /* Lighter accent for text/labels on dark surfaces (replaces ad-hoc
-     #8B7CFF / #b3a8ff). Meets 4.5:1 on surface backgrounds. */
-  --color-accent-soft: #A99CFF;
-  --color-secondary: #FF7605;
-  --color-secondary-hover: #E66A00;
-  --color-text: #FAFAFA;
-  --color-text-muted: #B3B3B3;
-  --color-text-faint: #6B7280;
-  --color-success: #10B981;
-  --color-danger: #EF4444;
-  --color-info: #3B82F6;
+  /* Surfaces / ink */
+  --color-bg: #07060C;            /* ink-0 page floor */
+  --color-surface: #110F1C;       /* ink-2 elevated */
+  --color-surface-2: #181425;     /* ink-3 */
+  --color-surface-3: #211C30;     /* ink-4 */
+  --color-border: rgba(255,255,255,0.10);
+  --color-border-strong: rgba(255,255,255,0.16);
 
-  /* Brand uses sharp corners. Everything maps onto this 0 / 2 / 4 / 6 scale —
-     no Tailwind-default rounded-xl (12px) generic curves. */
-  --radius-sm: 0px;
-  --radius-md: 2px;
-  --radius-lg: 4px;
-  --radius-xl: 6px;
+  /* Accent (purple) */
+  --color-accent: #7D3CFF;
+  --color-accent-hover: #9456FF;
+  --color-accent-soft: #AE7DFF;   /* light accent for text/labels */
+  --color-secondary: #5BE1FF;     /* cyan info accent (was orange) */
+  --color-secondary-hover: #22C3EA;
 
-  /* Archivo is the shipped display face (Chivo is not bundled, so it would
-     silently fall back anyway). */
-  --font-display: "Archivo", system-ui, sans-serif;
-  --font-sans: "Inter", system-ui, sans-serif;
+  /* Text */
+  --color-text: #F5F3FB;
+  --color-text-muted: #BEB8CF;
+  --color-text-faint: #847E99;
+  --color-success: #22D38A;
+  --color-danger: #F23E63;
+  --color-warning: #F5A623;
+  --color-info: #9456FF;
+
+  /* Rounded radii (design system) */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  /* Fonts — Space Grotesk UI, JetBrains Mono mono */
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 :root {
-  /* Elevation scale — use these instead of ad-hoc shadow-black/60 etc. */
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-pane: 0 8px 30px rgba(0, 0, 0, 0.5);
-  --shadow-menu: 0 12px 40px rgba(0, 0, 0, 0.6);
-  --ring-accent: 0 0 0 2px rgba(107, 87, 238, 0.55);
-  /* Branded accent surface — used on the wordmark and primary CTA. */
-  --gradient-accent: linear-gradient(180deg, #7A67F2 0%, #5A46D6 100%);
+  /* --- Brand purple scale (anchored on #7D3CFF) --- */
+  --purple-50:  #F4ECFF;
+  --purple-100: #E5D5FF;
+  --purple-200: #CBABFF;
+  --purple-300: #AE7DFF;
+  --purple-400: #9456FF;
+  --purple-500: #7D3CFF; /* primary */
+  --purple-600: #6A27F0;
+  --purple-700: #561CCC;
+  --purple-800: #41169C;
+  --purple-900: #2C0F6E;
 
-  /* Transition timing — refined for tactile, premium feel */
+  /* --- Ink / neutral scale (cool, faintly violet darks) --- */
+  --ink-0:  #07060C; /* page floor */
+  --ink-1:  #0B0913;
+  --ink-2:  #110F1C;
+  --ink-3:  #181425;
+  --ink-4:  #211C30;
+  --ink-5:  #2D2740;
+  --ink-6:  #3D3653;
+  --ink-7:  #564E6E;
+
+  /* --- Foreground / text --- */
+  --fg-1: #F5F3FB; /* high-emphasis */
+  --fg-2: #BEB8CF; /* body / muted */
+  --fg-3: #847E99; /* subtle / captions */
+  --fg-4: #564F69; /* faint / disabled */
+
+  /* --- Semantic accents (each ships its own glow hue) --- */
+  --green-400:  #4BE9A4;
+  --green-500:  #22D38A;
+  --amber-400:  #FFCB52;
+  --amber-500:  #F5A623;
+  --rose-400:   #FF6585;
+  --rose-500:   #F23E63;
+  --cyan-400:   #5BE1FF;
+  --cyan-500:   #22C3EA;
+
+  /* === Semantic aliases === */
+  --bg-app:        var(--ink-0);
+  --bg-elevated:   var(--ink-2);
+  --bg-sunken:     var(--ink-1);
+
+  --text-primary:   var(--fg-1);
+  --text-secondary: var(--fg-2);
+  --text-tertiary:  var(--fg-3);
+  --text-disabled:  var(--fg-4);
+  --text-on-accent: #FFFFFF;
+
+  --accent:          var(--purple-500);
+  --accent-hover:    var(--purple-400);
+  --accent-pressed:  var(--purple-600);
+  --accent-soft-rgba: rgba(125, 60, 255, 0.16);
+  --accent-ring:     rgba(125, 60, 255, 0.55);
+
+  /* --- Hairline borders (used over dark + glass) --- */
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong:  rgba(255, 255, 255, 0.16);
+  --border-accent:  rgba(125, 60, 255, 0.45);
+
+  /* === Glass surfaces (pair with --blur-* + a border) === */
+  --glass-1: rgba(28, 22, 44, 0.55);  /* nav / toolbar */
+  --glass-2: rgba(34, 27, 52, 0.62);  /* card */
+  --glass-3: rgba(44, 35, 66, 0.72);  /* popover / dialog */
+  --glass-hi: rgba(255, 255, 255, 0.06); /* top sheen overlay */
+
+  /* --- Spacing & sizing (4px base grid) --- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* control heights */
+  --control-sm: 32px;
+  --control-md: 40px;
+  --control-lg: 48px;
+
+  /* layout */
+  --container-max: 1200px;
+  --nav-h: 64px;
+
+  /* --- Corner radii (generously curved) --- */
+  --radius-xs:  6px;
+  --radius-2xl: 32px;
+  --radius-pill: 999px;
+
+  /* --- Backdrop blur (glass) --- */
+  --blur-sm: blur(8px) saturate(140%);
+  --blur-md: blur(18px) saturate(150%);
+  --blur-lg: blur(32px) saturate(160%);
+
+  /* --- Ambient elevation shadows (soft, for dark UI) --- */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.28);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.45), 0 12px 32px rgba(0,0,0,0.35);
+  --shadow-lg: 0 12px 28px rgba(0,0,0,0.5), 0 32px 64px rgba(0,0,0,0.45);
+
+  /* --- Glow (purple by default) --- */
+  --glow-accent:        0 0 0 1px rgba(125,60,255,0.28), 0 0 16px rgba(125,60,255,0.28), 0 0 40px rgba(125,60,255,0.14);
+  --glow-accent-strong: 0 0 0 1px rgba(125,60,255,0.38), 0 0 24px rgba(125,60,255,0.42), 0 0 60px rgba(125,60,255,0.24);
+  --glow-soft:          0 0 20px rgba(125,60,255,0.14);
+
+  /* --- Glass surface recipe --- */
+  --glass-edge:  inset 0 1px 0 rgba(255,255,255,0.10), inset 0 0 0 1px rgba(255,255,255,0.04);
+  --glass-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 24px 64px rgba(0,0,0,0.3);
+
+  /* --- Tactile emboss (the signature button look) --- */
+  --emboss-accent:
+    inset 0 1px 0.5px rgba(255,255,255,0.38),
+    inset 0 -1.5px 2px rgba(35,5,80,0.4),
+    inset 0 0 0 1px rgba(255,255,255,0.06),
+    0 1.5px 3px rgba(0,0,0,0.3),
+    0 5px 14px rgba(125,60,255,0.26),
+    0 0 16px rgba(125,60,255,0.16);
+  --emboss-accent-pressed:
+    inset 0 2px 4px rgba(35,5,80,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.18),
+    0 1px 2px rgba(0,0,0,0.35),
+    0 0 10px rgba(125,60,255,0.18);
+  --emboss-neutral:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -1px 2px rgba(0,0,0,0.32),
+    0 1.5px 4px rgba(0,0,0,0.28);
+
+  /* Focus ring */
+  --ring: 0 0 0 3px rgba(125,60,255,0.38);
+
+  /* Gradient sheens for accent fills */
+  --grad-accent: linear-gradient(180deg, #9456FF 0%, #7D3CFF 48%, #6A27F0 100%);
+  --grad-glass:  linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0) 100%);
+
+  /* --- Typography scale --- */
+  --text-2xs: 11px;
+  --text-xs:  12px;
+  --text-sm:  13px;
+  --text-md:  15px;
+  --text-lg:  18px;
+  --text-xl:  22px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+  --text-4xl: 48px;
+  --text-5xl: 64px;
+
+  --leading-tight:  1.1;
+  --leading-snug:   1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold: 600;
+  --weight-bold:    700;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide:  0.04em;
+  --tracking-mono:  0.01em;
+  --tracking-caps:  0.12em;
+
+  /* --- Transitions --- */
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-med:  220ms cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out-back:   cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Legacy aliases still referenced by existing utilities below. */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 300ms;
+  --shadow-card: var(--shadow-sm);
+  --shadow-pane: var(--shadow-md);
+  --shadow-menu: var(--shadow-lg);
+  --ring-accent: var(--ring);
+  --gradient-accent: var(--grad-accent);
 }
 
 body {
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--accent-soft-rgba); color: var(--text-primary); }
+
+/* Signature page atmosphere: deep ink + faint purple aurora.
+   Apply to a full-bleed wrapper with class .ds-canvas. */
+.ds-canvas {
+  min-height: 100%;
+  background:
+    radial-gradient(120% 80% at 15% -10%, rgba(125,60,255,0.18) 0%, rgba(125,60,255,0) 55%),
+    radial-gradient(90% 70% at 100% 0%, rgba(91,225,255,0.07) 0%, rgba(91,225,255,0) 50%),
+    var(--bg-app);
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -211,25 +405,25 @@ body {
 
 /* ---- Shared UI utilities — keep chrome consistent across components ---- */
 
-/* Section / eyebrow label. One treatment everywhere (Archivo, uppercase). */
+/* Section / eyebrow label. One treatment everywhere (mono, uppercase). */
 .section-label {
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
 /* Branded accent fill for the primary CTA + wordmark. */
-.accent-fill { background: var(--gradient-accent); }
+.accent-fill { background: var(--grad-accent); }
 
 /* Thin custom scrollbar for panes (replaces hidden/native inconsistency). */
 .scroll-thin { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }
 .scroll-thin::-webkit-scrollbar { width: 8px; height: 8px; }
 .scroll-thin::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 0;
+  border-radius: var(--radius-pill);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -243,7 +437,7 @@ body {
 .focus-glow:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px rgba(107, 87, 238, 0.35), 0 0 20px rgba(107, 87, 238, 0.12);
+  box-shadow: 0 0 0 1px rgba(125, 60, 255, 0.35), 0 0 20px rgba(125, 60, 255, 0.12);
 }
 
 /* Panel enter animation for sidebars/settings panes. */
@@ -294,3 +488,81 @@ body {
 .dot-active {
   animation: dotPulse 2s var(--ease-spring) infinite;
 }
+
+/* ---- Mobile / responsive chrome ----
+   Everything below is scoped to <=768px. The desktop layout (floating
+   right pane rail, full prompt-bar chips, wordmark + nav cluster) is hidden
+   on mobile and replaced with a compact header (menu button) and a bottom
+   drawer system. */
+
+@keyframes ds-drawer-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes ds-drawer-down {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+
+@keyframes ds-drawer-panel-in {
+  from { transform: translateX(40%); opacity: 0.2; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes ds-scrim-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes ds-grab-flash {
+  0%   { transform: translateX(0); }
+  25%  { transform: translateX(6px); }
+  55%  { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+
+.ds-scrim {
+  position: fixed; inset: 0; z-index: 90;
+  background: rgba(5, 4, 9, 0.55);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  animation: ds-scrim-in var(--duration-base) var(--ease-out-expo) both;
+}
+
+.ds-drawer {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 95;
+  display: flex; flex-direction: column;
+  max-height: 88vh; min-height: 220px;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  background: var(--glass-3);
+  backdrop-filter: var(--blur-lg); -webkit-backdrop-filter: var(--blur-lg);
+  box-shadow: var(--glass-edge), var(--shadow-lg);
+  border-top: 1px solid var(--border-subtle);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  animation: ds-drawer-up var(--duration-slow) var(--ease-out-expo) both;
+  overscroll-behavior: contain;
+}
+.ds-drawer--closing { animation: ds-drawer-down var(--duration-base) var(--ease-out-expo) both; }
+
+/* Subtle "swipe into view" gesture when a sub-panel pushes in. Applied to
+   the entering panel for ~300ms; harmless on reduced-motion. */
+.ds-panel-swipe-in { animation: ds-drawer-panel-in 300ms var(--ease-out-expo) both; }
+.ds-grab-indicator { animation: ds-grab-flash 600ms var(--ease-out-expo); }
+
+.ds-drawer__handle {
+  flex: none; align-self: center;
+  width: 40px; height: 4px; margin: 10px 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+.ds-drawer__head {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-3); padding: 6px 16px 12px;
+}
+.ds-drawer__title {
+  font-family: var(--font-mono); font-size: var(--text-sm); font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-mono); color: var(--text-primary);
+}
+.ds-drawer__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.ds-drawer__pad { padding: 0 16px 20px; }
